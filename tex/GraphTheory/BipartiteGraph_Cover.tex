@@ -1,0 +1,60 @@
+\section{二分图的覆盖与独立集}
+\subsection{二分图最小点覆盖}
+二分图最小覆盖模型特点：
+
+每条边有 2 个端点，二者至少选择一个。  “2要素”
+\subsubsection{König's theorem}
+二分图最小点覆盖包含的点数等于二分图最大匹配包含的边数。
+
+例题分析
+
+POJ1325 Machine Schedule（二分图最小覆盖）
+
+POJ2226 Muddy Fields（行列连续块，二分图最小覆盖）
+
+\subsection{二分图最大独立集}
+
+无向图 G 的最大团等于其补图 G' 的最大独立集。（补图转化）
+
+设G是有 n 个节点的二分图，G 的最大独立集的大小等于 n 减去最大匹配数。
+
+例题分析
+
+6901 骑士放置 （奇偶染色）
+
+\subsection{有向无环图的最小路径点覆盖}
+给定一张有向无环图，要求用尽量少的不相交的简单路径，覆盖有向无环图的所有顶点（也就是每个顶点恰好被覆盖一次）。
+这个问题被称为有向无环图的最小路径点覆盖，简称“最小路径覆盖”。
+
+有向无环图 G 的最小路径点覆盖包含的路径条数，等于n（有向无环图的点数）减去拆点二分图 G2 的最大匹配数。
+
+若简单路径可相交，即一个节点可被覆盖多次，这个问题称为有向无环图的最小路径可重复点覆盖。
+
+对于这个问题，可先对G求传递闭包，得到有向无环图 G'，再在 G' 上求一般的（路径不可相交的）最小路径点覆盖。
+
+例题分析
+
+6902 Vani和Cl2捉迷藏（最小路径可重复点覆盖，构造方案）
+\begin{lstlisting}
+// 构造方案，先把所有路径终点（左部非匹配点）作为藏身点
+for (int i = 1; i <= n; i++) succ[match[i]] = true;
+for (int i = 1, k = 0; i <= n; i++)
+    if (!succ[i]) hide[++k] = i;
+memset(vis, 0, sizeof(vis));
+bool modify = true;
+while (modify) {
+    modify = false;
+    // 求出 next(hide)
+    for (int i = 1; i <= ans; i++) 
+        for (int j = 1; j <= n; j++)
+            if (cl[hide[i]][j]) vis[j] = true;
+    for (int i = 1; i <= ans; i++)
+        if (vis[hide[i]]) {
+            modify = true;
+            // 不断向上移动
+            while (vis[hide[i]]) hide[i] = match[hide[i]];
+        }
+}
+for (int i = 1; i <= ans; i++) printf("%d ", hide[i]);
+cout << endl;
+\end{lstlisting}

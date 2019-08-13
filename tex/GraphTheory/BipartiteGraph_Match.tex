@@ -1,0 +1,134 @@
+\section{二分图的匹配}
+\subsection{二分图判定}
+    一张无向图是二分图，当且仅当图中不存在奇环（长度为奇数的环）。
+\begin{lstlisting}
+//染色法判定奇环
+bool DFS(int x,int color)
+{
+    vis[x]=color;
+    for(int i=head[x];i;i=nxt[i])
+    {
+        int y=ver[i];
+        if(!vis[y])
+        {
+            if(!DFS(y,3-color)) return false;
+        }
+        else if(vis[y]==color) return false;
+    }
+    return true;
+}
+\end{lstlisting}
+
+例题分析
+
+P1525 关押罪犯（判定二分图，二分）
+
+\subsection{二分图最大匹配}
+二分图匹配的模型要素
+
+1：节点能分成独立的两个集合，每个集合内部有 0 条边。 “0要素”
+
+2：每个节点只能与 1 条匹配边相连。 “1要素”
+\begin{lstlisting}
+\\匈牙利算法
+\\在主函数中对每个左部节点调用寻找增广路时，需要对 vis 重置。
+bool DFS(int x)
+{
+    for (int i = head[x]; i; i = nxt[i])
+    {
+        int y = ver[i];
+        if (!vis[y])
+        {
+            vis[y] = 1;
+            if (!match[y] || DFS(match[y]))
+            {
+                match[y] = x;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+\end{lstlisting}
+
+例题分析
+
+6801 棋盘覆盖（奇偶染色）
+
+6802 車的放置（行列）
+
+6803 导弹防御塔（二分，拆点多重匹配）
+
+\subsection{二分图带权匹配}
+二分图带权最大匹配的前提是匹配数最大，然后再最大化匹配边的权值总和。
+\begin{lstlisting}
+/*KM 稠密图上效率高于费用流，但是有较大局限性，只能在满足“带权最大匹配一定是完备匹配”的图中正确求解。
+w[][]:边权
+la[]，lb[]: 左，右部点顶标
+visa[]，visb[]: 访问标记，是否在交错树中
+ans: Σw[match[i]][i]
+*/
+bool DFS(int x)
+{
+    visa[x] = true;
+    for (int y = 1; y <= n; y++)
+    {
+        if (!visb[y])
+        {
+            double temp = fabs(la[x] + lb[y] - w[x][y]);//对于浮点数，相等子图的判定
+            if (temp < eps)
+            {
+                visb[y] = true;
+                if (!match[y] || DFS(match[y]))
+                {
+                    match[y] = x;
+                    return true;
+                }
+            }
+            else
+                upd[y] = min(upd[y], la[x] + lb[y] - w[x][y]);
+        }
+    }
+    return false;
+}
+void KM()
+{
+    for (int i = 1; i <= n; i++)
+    {
+        la[i] = -inf;
+        lb[i] = 0;
+        for (int j = 1; j <= n; j++)
+            la[i] = max(la[i], w[i][j]);
+    }
+    for (int i = 1; i <= n; i++)
+    {
+        while (true)
+        {
+            memset(visa, 0, sizeof(visa));
+            memset(visb, 0, sizeof(visb));
+            for (int j = 1; j <= n; j++)
+                upd[j] = inf;
+            if (DFS(i))
+                break;
+            else
+            {
+                delta = inf;
+                for (int j = 1; j <= n; j++)
+                    if (!visb[j])
+                        delta = min(delta, upd[j]);
+                for (int j = 1; j <= n; j++)
+                {
+                    if (visa[j])
+                        la[j] -= delta;
+                    if (visb[j])
+                        lb[j] += delta;
+                }
+            }
+        }
+    }
+}
+\end{lstlisting}
+
+例题分析
+
+POJ3565 Ants（三角形不等式，二分图带权最小匹配）

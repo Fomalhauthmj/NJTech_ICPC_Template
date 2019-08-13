@@ -54,3 +54,40 @@ POJ1236 Network of Schools（SCC->DAG，入度出度）
 P3275 [SCOI2011]糖果（SPFA TLE，SCC->DAG，Topo，DP）
 
 \subsection{有向图的必经点与必经边}
+对于有向无环图（DAG）：
+
+    在原图中按照拓扑序进行动态规划，求出起点S到图中每个点 x 的路径条数 fs[x]。
+
+    在反图上再次按照拓扑序进行动态规划，求出每个点 x 到终点T的路径条数 ft[x]。
+
+    显然，fs[T] 表示从S到T的路径总条数。根据乘法原理：
+
+    1：对于一条有向边 (x,y)，若 fs[x]*ft[y]=fs[T]，则 (x,y) 是有向无环图从S到T的必经边。
+    
+    2：对于一个点 x，若 fs[x]*ft[x]=fs[T]，则 x 是有向无环图从S到T的必经点。
+
+    路径条数规模较大，可对大质数取模后保存，但有概率误判。
+
+
+例题分析
+
+6703 PKU ACM Team's Excursion （DAG必经边，枚举，DP）
+
+\subsection{2-SAT问题}
+
+原命题与逆否命题互为等价命题，在建立有向边关系时要注意对称性。
+
+例题分析
+
+POJ3678 Katu Puzzle（2-SAT，Tarjan,，SCC）
+
+POJ3683 Priest John's Busiest Day（2-SAT方案构造）
+
+\begin{lstlisting}
+for (int i = 1; i <= 2 * n; i++)
+{
+    val[i] = color[i] > color[opp[i]];
+    //若c[i] 大于 c[opp[i]]   opp[i]赋0 
+}
+\end{lstlisting}
+    
