@@ -1,171 +1,160 @@
 \section{网络流初步}
 \subsection{最大流}
-\subsubsection{Edmonds Karp}
+\subsubsection{Edmonds Karp增广路}
 \begin{lstlisting}
-#define ll long long
-#define inf 0x3f3f3f3f
-const int M = 205;
-ll c[M][M];
-int pre[M];
-ll flow[M];
-int n, m;
-ll BFS(int s, int t)
-{
+bool BFS() {
+    memset(vis, 0, sizeof(vis));
     queue<int> q;
-    memset(pre, -1, sizeof(pre));
-    flow[s] = inf;
-    pre[s] = 0;
-    q.push(s);
-    while (!q.empty())
-    {
-        int u = q.front();
-        q.pop();
-        if (u == t)
-        {
-            break;
-        }
-        for (int v = 1; v <= m; v++)
-        {
-            if (c[u][v] > 0 && pre[v] == -1&&v!=s)
-            {
-                pre[v] = u;
-                flow[v] = min(c[u][v], flow[u]);
-                q.push(v);
+    q.push(S); vis[S] = 1;
+    incf[S] = inf; // 增广路上各边的最小剩余容量
+    while (q.size()) {
+        int x = q.front(); q.pop();
+        for (int i = head[x]; i; i = Next[i])
+            if (edge[i]) {
+                int y = ver[i];
+                if (vis[y]) continue;
+                incf[y] = min(incf[x], edge[i]);
+                pre[y] = i; // 记录前驱，便于找到最长路的实际方案
+                q.push(y), vis[y] = 1;
+                if (y == t) return 1;
             }
-        }
     }
-    if (pre[t] == -1)
-        return -1;
-    return flow[t];
+    return 0;
 }
-ll Edmonds_Karp(int s, int t)
-{
-    ll inc;
-    ll ans = 0;
-    int k, last;
-    while ((inc = BFS(s, t)) != -1)
-    {
-        k = t;
-        while (k != s)
-        {
-            last = pre[k];
-            c[last][k] -= inc;
-            c[k][last] += inc;
-            k = last;
-        }
-        ans += inc;
-        //cout<<"cur:"<<inc<<endl;
+void Update() { // 更新增广路及其反向边的剩余容量
+    int x = t;
+    while (x != s) {
+        int i = pre[x];
+        edge[i] -= incf[t];
+        edge[i ^ 1] += incf[t]; // 利用“成对存储”的xor 1技巧
+        x = ver[i ^ 1];
     }
-    return ans;
+    maxflow += incf[t];
 }
 \end{lstlisting}
-\emph{例题：https://www.luogu.org/problemnew/show/P2740}
 
 \subsubsection{Dinic}
-\textbf{多路增广，当前弧优化}
 \begin{lstlisting}
-#define inf 0x3f3f3f3f3f
-#define N 1200
-#define M 245000
-#define ll long long
-//反向边的存在 实际边数的两倍
-struct Edge
-{
-    ll to;
-    ll w;
-    ll next;
-};
-Edge edge[M];
-ll dep[N];
-ll head[N];
-ll cur[N]; //当前弧优化
-ll cnt = 0;
-ll n, m;
-void Init()
-{
-    memset(head, -1, sizeof(head));
-}
-void add(ll u, ll v, ll w)
-{
-    edge[cnt].to = v;
-    edge[cnt].w = w;
-    edge[cnt].next = head[u];
-    head[u] = cnt++;
-}
-void Add(ll u, ll v, ll w)
-{
-    add(u, v, w);
-    add(v, u, 0); //反向边
-}
-ll s, t;
+//可加入当前弧优化（&）：在增广时复制head[]到cur[]，在增广时同步修改cur[]，目的是递归时跳过已增广的边。
 bool BFS()
 {
-    queue<ll> q;
-    memset(dep, -1, sizeof(dep));
-    dep[s] = 0;
-    q.push(s);
-    while (!q.empty())
+    memset(d, 0, sizeof(d));
+    queue<int> q;
+    q.push(S);
+    d[S] = 1; //不为1  陷入死循环
+    while (q.size())
     {
-        ll now = q.front();
+        int x = q.front();
         q.pop();
-        for (ll i = head[now]; i != -1; i = edge[i].next)
+        for (int i = head[x]; i; i = nxt[i])
         {
-            if (edge[i].w > 0 && dep[edge[i].to] == -1)
+            int y = ver[i];
+            if (edge[i] && !d[y])
             {
-                dep[edge[i].to] = dep[now] + 1;
-                q.push(edge[i].to);
+                d[y] = d[x] + 1;
+                q.push(y);
+                if (y == T)
+                    return true;
             }
         }
     }
-    if (dep[t] == -1)
-        return false; //不存在分层图
+    return false;
+}
+int Dinic(int x, int flow)
+{
+    if (x == T)
+        return flow;
+    int rest = flow, k;
+    for (int i = head[x]; i && rest; i = nxt[i])
+    {
+        int y = ver[i];
+        if (edge[i] && d[y] == d[x] + 1)
+        {
+            k = Dinic(y, min(edge[i], rest));
+            if (!k)
+                d[y] = 0;
+            edge[i] -= k;
+            edge[i ^ 1] += k;
+            rest -= k;
+        }
+    }
+    return flow - rest;
+}
+\end{lstlisting}
+
+\subsubsection{二分图最大匹配的必须边与可行边}
+在一般的二分图中，可以用最大流计算任一组最大匹配。
+
+此时：
+    必须边的判定条件为：(x,y) 流量为 1 ，并且在残量网络上属于不同的SCC。
+
+    可行边的判定条件为：(x,y) 流量为 1 ，或者在残量网络上属于同一个SCC。
+
+例题分析
+
+CH17C 舞动的夜晚（Dinic，Tarjan，二分图可行边）
+
+\subsection{最小割}
+\subsubsection{最大流最小割定理}
+任何一个网络的最大流量等于最小割中边的容量之和。
+
+例题分析
+
+POJ1966 Cable TV Network （枚举，点边转化）
+
+\subsection{费用流}
+\subsubsection{Edmonds Karp 增广路}
+BFS寻找增广路 -> SPFA寻找单位费用之和最小的增广路（将费用作为边权，在残量网络上求最短路）。
+
+注意：反向边的费用为相反数。
+\begin{lstlisting}
+bool SPFA()
+{
+    memset(dis, 0xcf, sizeof(dis));//-inf
+    memset(vis, 0, sizeof(vis));
+    queue<int> q;
+    dis[S] = 0, vis[S] = 1, incf[S] = 1 << 30;
+    q.push(S);
+    while (q.size())
+    {
+        int x = q.front();
+        q.pop();
+        vis[x] = 0;
+        for (int i = head[x]; i; i = nxt[i])
+        {
+            if (edge[i])
+            {
+                int y = ver[i];
+                if (dis[y] < dis[x] + cost[i])
+                {
+                    dis[y] = dis[x] + cost[i];
+                    incf[y] = min(incf[x], edge[i]);
+                    pre[y] = i;
+                    if (!vis[y])
+                        q.push(y), vis[y] = 1;
+                }
+            }
+        }
+    }
+    if (dis[T] == 0xcfcfcfcf)
+        return false;
     return true;
 }
-ll DFS(ll now, ll flow)
+int max_flow, ans;
+void Update()
 {
-    if (now == t)
-        return flow;
-    ll used = 0;
-    for (ll &i = cur[now]; i != -1; i = edge[i].next)
+    int x = T;
+    while (x != S)
     {
-        //&：当前弧优化
-        if (dep[edge[i].to] == dep[now] + 1 && edge[i].w)
-        {
-            ll inc = DFS(edge[i].to, min(flow - used, edge[i].w));
-            if (inc > 0)
-            {
-                edge[i].w -= inc;
-                edge[i ^ 1].w += inc;
-                used += inc;
-                if (flow == used)
-                    break;
-            }
-        }
+        int i = pre[x];
+        edge[i] -= incf[T];
+        edge[i ^ 1] += incf[T];
+        x = ver[i ^ 1];
     }
-    if (!used)
-        dep[now] = -1;
-    return used;
-}
-ll Dinic()
-{
-    ll ans = 0;
-    while (BFS())
-    {
-        for (ll i = 1; i <= n; i++)
-        {
-            cur[i] = head[i];
-        }
-        ans += DFS(s, inf);
-    }
-    return ans;
+    max_flow += incf[T];
+    ans += incf[T] * dis[T];
 }
 \end{lstlisting}
-\emph{例题：https://www.luogu.org/problemnew/show/P3376}
+例题分析
 
-\subsubsection{ISAP}
-\begin{lstlisting}    
-\end{lstlisting}
-\subsubsection{HLPP}
-\textbf{最高标号预留推进}
-\begin{lstlisting}
-\end{lstlisting}
+POJ3422 Kaka's Matrix Travels（点边转化，费用流）
