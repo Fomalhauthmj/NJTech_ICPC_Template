@@ -1,0 +1,180 @@
+\section{字符串Hash}
+\begin{lstlisting}
+#define ull unsigned long long
+#define P 131
+ull f[N], p[N];
+void Init()
+{
+    p[0] = 1, f[0] = 0;
+    for (int i = 1; i <= n; i++)
+    {
+        p[i] = p[i - 1] * P;
+        f[i] = f[i - 1] * P + str[i];
+    }
+}
+ull Hash(int left, int right)
+{
+    return f[right] - f[left - 1] * p[right - left + 1];
+}
+\end{lstlisting}
+
+\subsection{应用：最长回文子串}
+枚举回文子串的中心位置，求解从中心位置出发向左右两侧最长可扩展出多长的回文串，
+
+分奇、偶回文子串，二分长度。
+\begin{lstlisting}
+#define ull unsigned long long
+#define P 131
+const int N = 1e6 + 50;
+ull pre[N], suf[N], p[N];
+string str;
+int n;
+void Init()
+{
+    pre[0] = suf[0] = 0;
+    for (int i = 1; i <= n; i++)
+    {
+        pre[i] = pre[i - 1] * P + str[i - 1];
+        suf[i] = suf[i - 1] * P + str[n - i];
+    }
+}
+ull Hash(int left, int right)
+{
+    return pre[right] - pre[left - 1] * p[right - left + 1];
+}
+ull HashReverse(int left, int right)
+{
+    //WA 这里注意推导
+    return suf[n - left + 1] - suf[n - right] * p[right - left + 1];
+}
+#define ODD 1
+#define EVEN 2
+bool Judge(int pos, int len, int flag)
+{
+    if (flag == ODD)
+    {
+        if (pos - len < 1 || pos > n || pos < 1 || pos + len > n)
+            return false;
+        return Hash(pos - len, pos) == HashReverse(pos, pos + len);
+    }
+    else
+    {
+        if (pos - len < 1 || pos - 1 > n || pos < 1 || pos + len - 1 > n)
+            return false;
+        return Hash(pos - len, pos - 1) == HashReverse(pos, pos + len - 1);
+    }
+}
+int Solve(int pos)
+{
+    int ans = 1;
+    //奇数
+    int left = 0;
+    int right = N;
+    int mid;
+    while (left < right)
+    {
+        mid = (left + right + 1) >> 1;
+        if (Judge(pos, mid, ODD))
+            left = mid;
+        else
+            right = mid - 1;
+    }
+    ans = max(ans, 2 * left + 1);
+    //偶数
+    left = 0;
+    right = N;
+    while (left < right)
+    {
+        mid = (left + right + 1) >> 1;
+        if (Judge(pos, mid, EVEN))
+            left = mid;
+        else
+            right = mid - 1;
+    }
+    ans = max(ans, 2 * left);
+    return ans;
+}
+\end{lstlisting}
+
+\subsection{应用：后缀数组}
+
+\begin{lstlisting}
+#define ull unsigned long long
+#define P 131
+const int N = 3e5 + 50;
+ull f[N], p[N];
+char str[N];
+int SA[N], n, Height[N];
+void Init()
+{
+    p[0] = 1, f[0] = 0;
+    for (int i = 1; i <= n; i++)
+    {
+        p[i] = p[i - 1] * P;
+        f[i] = f[i - 1] * P + str[i];
+    }
+}
+ull Hash(int left, int right)
+{
+    return f[right] - f[left - 1] * p[right - left + 1];
+}
+// k∈[0,n) 表示后缀S(k,n-1)
+// 最长公共前缀
+int LCP(int a, int b)
+{
+    int left = 0;
+    int right = N;
+    int mid;
+    while (left < right)
+    {
+        mid = (left + right + 1) >> 1;
+        if (a + mid - 1 <= n && b + mid - 1 <= n && Hash(a, a + mid - 1) == Hash(b, b + mid - 1))
+            left = mid;
+        else
+            right = mid - 1;
+    }
+    return left;
+}
+bool cmp(int a, int b)
+{
+    int len = LCP(a, b);
+    return str[a + len] < str[b + len];
+}
+void calc_height()
+{
+    Height[1] = 0;
+    for (int i = 2; i <= n; i++)
+        Height[i] = LCP(SA[i], SA[i - 1]);
+}
+int main()
+{
+    scanf("%s", str + 1);
+    n = strlen(str + 1);
+    for (int i = 1; i <= n; i++)
+        SA[i] = i;
+    Init();
+    sort(SA + 1, SA + n + 1, cmp);
+    calc_height();
+}
+\end{lstlisting}
+
+\subsection{二维Hash}
+给定一个M行N列的01矩阵（只包含数字0或1的矩阵），再执行Q次询问，每次询问给出一个A行B列的01矩阵，求该矩阵是否在原矩阵中出现过。
+
+做法：选取两个不同的P值分别对行列进行Hash处理，应用二维前缀和求取矩阵Hash值。
+\begin{lstlisting}
+#define P 131
+#define Q 13331
+#define ull unsigned long long
+void Init()
+{
+    char ch;
+    for (int i = 1; i <= m; i++)
+        for (int j = 1; j <= n; j++)
+            cin >> ch, Hash[i][j] = Hash[i][j - 1] * P + ch;
+    for (int i = 1; i <= m; i++)
+        for (int j = 1; j <= n; j++)
+            Hash[i][j] += Hash[i - 1][j] * Q;
+}
+ull temp = Hash[i][j] - Hash[i - a][j] * q[a] - Hash[i][j - b] * p[b] + Hash[i - a][j - b] * q[a] * p[b];
+\end{lstlisting}
