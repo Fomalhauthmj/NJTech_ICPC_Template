@@ -1,0 +1,124 @@
+\section{归并树}
+\subsection{简介}
+    归并排序，自底向上越来越有序。而归并树则是将归并排序的中间结果保留了下来。\\
+    为什么要这么做呢？因为这样当询问区间时，总是可以将询问区间二分成某一次或几次归并排序的中间结果。
+\subsection{区间第k小值}
+    \subsubsection{问题简述}
+        给定n个数，m次查询，每次查询[l,r]内从小到大第k个数，输出这个数。
+    \subsubsection{解决方案}
+        对这n个数先排序，然后二分尝试，将二分得到的中间值代入归并树中，看是否排名为k，\textbf{对所有排名小于等于k的取最大值}。\\
+        建树时间复杂度O(NlogN)，查询时间复杂度O(logNlogN)。
+\begin{lstlisting}
+#include <bits/stdc++.h>
+
+using namespace std;
+typedef long long ll;
+const int N = 1e5 + 10, INF = 1e9 + 8;
+
+int a[N], n, m;
+
+struct Node {
+    int l, r, m;
+    vector<int> a;
+} t[N * 3];
+
+// 由a[]数组初始化归并树
+void build(int l, int r, int x) {
+    Node& cur = t[x];
+    cur.l = l, cur.r = r, cur.m = (l + r) / 2;
+    cur.a.clear();
+    if (r - l == 1) {
+        cur.a.push_back(a[cur.l]);
+        return;
+    }
+    build(l, cur.m, x * 2);
+    build(cur.m, r, x * 2 + 1);
+    Node &lch = t[x * 2], &rch = t[x * 2 + 1];
+    vector<int>::iterator it1, it2;
+    it1 = lch.a.begin(), it2 = rch.a.begin();
+    // 合并左右子树
+    while (it1 != lch.a.end() && it2 != rch.a.end()) {
+        if (*it1 <= *it2)
+            cur.a.push_back(*it1), it1++;
+        else
+            cur.a.push_back(*it2), it2++;
+    }
+    while (it1 != lch.a.end())
+        cur.a.push_back(*it1), it1++;
+    while (it2 != rch.a.end())
+        cur.a.push_back(*it2), it2++;
+}
+
+// 查询在区间[l,r)内比v小的数的个数，稍加修改便可查询大于等于k的最小值
+int query(int l, int r, int v, int x) {
+    Node& cur = t[x];
+    if (cur.l == l && cur.r == r)
+        return lower_bound(cur.a.begin(), cur.a.end(), v) - cur.a.begin();
+    if (r <= cur.m)
+        return query(l, r, v, x * 2);
+    else if (l >= cur.m)
+        return query(l, r, v, x * 2 + 1);
+    else
+        return query(l, cur.m, v, x * 2) + query(cur.m, r, v, x * 2 + 1);
+}
+
+// 查询区间[l,r)区间内的从小到大第k个值
+int QR(int ql, int qr, int k) {
+    int l = 1, r = n + 1, m, ans = -INF;
+    while (l < r) {
+        m = (l + r) / 2;
+        int rank = query(ql, qr, a[m], 1) + 1;
+        if (rank <= k)  // 可能有相等的值，所以需要<=
+            ans = max(ans, a[m]);
+        if (rank <= k)
+            l = m + 1;
+        else
+            r = m;
+    }
+    return ans;
+}
+
+int main() {
+    int i, l, r, k;
+    while (scanf("%d%d", &n, &m) != EOF) {
+        for (i = 1; i <= n; i++)
+            scanf("%d", &a[i]);
+        build(1, n + 1, 1);
+        sort(a + 1, a + 1 + n);
+        for (i = 1; i <= m; i++) {
+            scanf("%d%d%d", &l, &r, &k);
+            printf("%d\n", QR(l, r + 1, k));
+        }
+    }
+
+    return 0;
+}
+\end{lstlisting}
+    \subsubsection{思考}
+        如何取区间内不重复的第k大？\\
+        结点中用两个vector，其中一个是原来的不变，另一个用于存放不重复的数，查询的时候在后者中查。
+
+\subsection{区间内大于等于v的最小值}
+    \subsubsection{问题简述}
+        给定n个数，m次查询，每次查询[l,r]内比v大的最小值，输出这个最小值。
+    \subsubsection{解决方案}
+        归并树天生适合的问题。对于对应区间，直接返回lower\_bound找到的第一个数注意，如果没找到返回一个无限大，
+        对于其余祖先节点，返回左右子树中找到的最小值。
+\begin{lstlisting}
+int query(int l, int r, int v, int x) {
+    Node& cur = t[x];
+    if (cur.l == l && cur.r == r) {
+        vector<int>::iterator it;
+        it = lower_bound(cur.a.begin(), cur.a.end(), v);
+        if (it == cur.a.end())
+            return n + 1;
+        return *it;
+    }
+    if (r <= cur.m)
+        return query(l, r, v, x * 2);
+    else if (l >= cur.m)
+        return query(l, r, v, x * 2 + 1);
+    else
+        return min(query(l, cur.m, v, x * 2), query(cur.m, r, v, x * 2 + 1));
+}
+\end{lstlisting}
