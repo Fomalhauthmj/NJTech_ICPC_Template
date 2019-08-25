@@ -1,0 +1,85 @@
+\section{划分树}
+
+\subsection{简介}
+    划分树是模拟快速排序的。快速排序，自顶向下越来越有序。划分树是在进行快速排序的过程中记录当前子段中每个位置的数是否进入左子树，
+    并用前缀和的思想统计它们。之后再查询时便可依据进入左子树的个数计算第k个数是在左子树还是右子树。
+
+\subsection{区间第k小值}
+    \subsubsection{问题简述}
+        给定n个数，m次查询，每次查询[l,r]内从小到大第k个数，输出这个数。
+    \subsubsection{解决方案}
+\begin{lstlisting}
+#include <bits/stdc++.h>
+
+using namespace std;
+typedef long long ll;
+const int N = 1e5 + 10;
+
+int a[N], sorted[N], n;
+int seg[21][N], toleft[21][N];
+
+// 建树
+void build(int l, int r, int dep) {
+    if (l == r) {
+        seg[dep + 1][l] = seg[dep][l];
+        return;
+    }
+    int i, m = (l + r) / 2, lp = l, rp = m + 1, cnt = 0, t = 0;
+    // cnt: 该节点内比sorted[m]小的元素个数
+    for (i = l; i <= r; i++)
+        cnt += seg[dep][i] < sorted[m];
+
+    for (i = l; i <= r; i++) {
+        if (i == l)
+            toleft[dep][i] = 0;
+        else
+            toleft[dep][i] = toleft[dep][i - 1];
+
+        if (seg[dep][i] < sorted[m])
+            seg[dep + 1][lp++] = seg[dep][i], toleft[dep][i]++;
+        else if (seg[dep][i] > sorted[m])
+            seg[dep + 1][rp++] = seg[dep][i];
+        else {                        // ==
+            if (t < m - l + 1 - cnt)  // m-l+1-cnt: 左边最多可以放多少个sorted[m]
+                seg[dep + 1][lp++] = seg[dep][i], toleft[dep][i]++, t++;
+            else
+                seg[dep + 1][rp++] = seg[dep][i];
+        }
+    }
+
+    build(l, m, dep + 1);
+    build(m + 1, r, dep + 1);
+}
+
+// 询问区间[l,r]内从小到大的第k个值，当前区间为[sl,sr](初始时为[1,n])，当前深度为dep(初始时为1)
+int query(int l, int r, int k, int sl, int sr, int dep) {
+    if (r == l)
+        return seg[dep][l];
+    int m = (sl + sr) / 2;
+    int tlsl = (l - 1 >= sl ? toleft[dep][l - 1] : 0), tlsr = toleft[dep][sr];
+    int tlr = toleft[dep][r];
+    if (k <= tlr - tlsl)
+        return query(sl + tlsl, m - (tlsr - tlr), k, sl, m, dep + 1);
+    else
+        return query(m + 1 + l - sl - tlsl, sr - (sr - r - (tlsr - tlr)), k - (tlr - tlsl), m + 1, sr, dep + 1);
+}
+
+int main() {
+    int m, i, l, r, k;
+    scanf("%d%d", &n, &m);
+
+    // 以下4行是初始化
+    for (i = 1; i <= n; i++)
+        scanf("%d", &a[i]), sorted[i] = seg[1][i] = a[i];
+    sort(sorted + 1, sorted + 1 + n);
+    build(1, n, 1);
+
+    for (i = 1; i <= m; i++) {
+        scanf("%d%d%d", &l, &r, &k);
+        int ans = query(l, r, k, 1, n, 1);
+        printf("%d\n", ans);
+    }
+
+    return 0;
+}
+\end{lstlisting}

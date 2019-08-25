@@ -1,0 +1,101 @@
+\section{带Lazy标记的线段树}
+    以下是区间修改+区间最大值查询。\\
+    若是区间修改+\textbf{区间和查询}，则在pushdown时需要将lazy标记\textbf{乘上区间长度}加到结点上。
+\begin{lstlisting}
+#include <bits/stdc++.h>
+
+using namespace std;
+const int N = 1e5 + 10;
+
+int n;  // 长度
+
+struct Node {
+    int l, r, m;
+    int mx;   // [l,r)中的最大值
+    int tag;  // lazy标记
+} t[4 * N];   // 数组大小不要忘记 * 4
+
+// 将lazy标记下推
+inline void pushdown(int x) {
+    Node& cur = t[x];
+    if (cur.r - cur.l == 1)
+        return;
+    Node &lch = t[x * 2], &rch = t[x * 2 + 1];
+    lch.mx += cur.tag, rch.mx += cur.tag;
+    lch.tag += cur.tag, rch.tag += cur.tag;
+    cur.tag = 0;
+}
+
+// 由x的儿子更新x结点，此时应确保x的儿子为最新
+inline void pushup(int x) {
+    Node& cur = t[x];
+    if (cur.r - cur.l == 1)
+        return;
+    Node &lch = t[x * 2], &rch = t[x * 2 + 1];
+    cur.mx = max(lch.mx, rch.mx);
+}
+
+// 建树。注意初始时叶子是否为0，若不是，需要pushup
+void build(int l, int r, int x) {
+    Node& cur = t[x];
+    cur.l = l, cur.r = r, cur.m = (l + r) / 2;
+    cur.mx = 0, cur.tag = 0;  // 初始化最大值、lazy标记
+    if (r - l == 1)
+        return;
+    build(l, cur.m, x * 2);
+    build(cur.m, r, x * 2 + 1);
+    pushup(x);  // 若初始值非0，则这句一定要加
+}
+
+// [l,r)每个元素加v。注意打标记时应更新被打标记结点的mx，并且应立即pushdown,pushup，过程中也需要pushdown,pushup
+void update(int l, int r, int x, int v) {
+    Node& cur = t[x];
+    if (cur.l == l && cur.r == r) {
+        cur.tag += v, cur.mx += v;  // 打标记的时候一定是同时更新max的
+        pushdown(x), pushup(x);
+        return;
+    }
+    pushdown(x);
+    if (r <= cur.m)
+        update(l, r, x * 2, v);
+    else if (l >= cur.m)
+        update(l, r, x * 2 + 1, v);
+    else
+        update(l, cur.m, x * 2, v), update(cur.m, r, x * 2 + 1, v);
+    pushup(x);
+}
+
+// 查询[l,r)的最大值。过程中注意pushdown
+int query(int l, int r, int x) {
+    Node& cur = t[x];
+    pushdown(x);
+    if (cur.l == l && cur.r == r)
+        return cur.mx;
+    int mx = 0;
+    if (r <= cur.m)
+        mx = query(l, r, x * 2);
+    else if (l >= cur.m)
+        mx = query(l, r, x * 2 + 1);
+    else
+        mx = max(query(l, cur.m, x * 2), query(cur.m, r, x * 2 + 1));
+    return mx;
+}
+
+int main() {
+    ios::sync_with_stdio(0);
+    cin.tie(0);
+
+    int m, i, l, r, v;
+    cin >> n >> m;
+    build(1, n + 1, 1);  // 不要忘记build初始化，[l,r+1)
+    for (i = 1; i <= m; i++) {
+        cin >> v >> l >> r;
+        if (!v)
+            cout << query(l, r + 1, 1) << endl;
+        else
+            update(l, r + 1, 1, 1);
+    }
+
+    return 0;
+}
+\end{lstlisting}
