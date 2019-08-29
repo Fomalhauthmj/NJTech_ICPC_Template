@@ -108,9 +108,14 @@ BFS寻找增广路 -> SPFA寻找单位费用之和最小的增广路（将费用
 
 注意：反向边的费用为相反数。
 \begin{lstlisting}
+void add(int x, int y, int z, int c)
+{
+    ver[++tot] = y, nxt[tot] = head[x], head[x] = tot, edge[tot] = z, cost[tot] = c;
+    ver[++tot] = x, nxt[tot] = head[y], head[y] = tot, edge[tot] = 0, cost[tot] = -c;
+}
 bool SPFA()
 {
-    memset(dis, 0xcf, sizeof(dis));//-inf
+    memset(dis, 0x3f, sizeof(dis)); //inf
     memset(vis, 0, sizeof(vis));
     queue<int> q;
     dis[S] = 0, vis[S] = 1, incf[S] = 1 << 30;
@@ -125,7 +130,7 @@ bool SPFA()
             if (edge[i])
             {
                 int y = ver[i];
-                if (dis[y] < dis[x] + cost[i])
+                if (dis[y] > dis[x] + cost[i])
                 {
                     dis[y] = dis[x] + cost[i];
                     incf[y] = min(incf[x], edge[i]);
@@ -136,11 +141,11 @@ bool SPFA()
             }
         }
     }
-    if (dis[T] == 0xcfcfcfcf)
+    if (dis[T] >= inf)
         return false;
     return true;
 }
-int max_flow, ans;
+ll max_flow, ans;
 void Update()
 {
     int x = T;
