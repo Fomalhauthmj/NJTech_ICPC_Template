@@ -1,18 +1,21 @@
 \section{KMP}
 \begin{lstlisting}
 // KMP
-next[1] = 0;
-for (int i = 2, j = 0; i <= n; i++) {
-    while (j > 0 && a[i] != a[j+1]) j = next[j];
-    if (a[i] == a[j+1]) j++;
-    next[i] = j;
+void calc_next(){
+    next[1] = 0;
+    for (int i = 2, j = 0; i <= n; i++) {
+        while (j > 0 && a[i] != a[j+1]) j = next[j];
+        if (a[i] == a[j+1]) j++;
+        next[i] = j;
+    }
 }
-
-for (int i = 1, j = 0; i <= m; i++) {
-    while (j > 0 && (j == n || b[i] != a[j+1])) j = next[j];
-    if (b[i] == a[j+1]) j++;
-    f[i] = j;
-    // if (f[i] == n)，此时就是A在B中的某一次出现
+void KMP(){
+    for (int i = 1, j = 0; i <= m; i++) {
+        while (j > 0 && (j == n || b[i] != a[j+1])) j = next[j];
+        if (b[i] == a[j+1]) j++;
+        f[i] = j;
+        // if (f[i] == n)，此时就是a在b中的某一次出现
+    }
 }
 \end{lstlisting}
 字符串循环元可利用next数组求解。
