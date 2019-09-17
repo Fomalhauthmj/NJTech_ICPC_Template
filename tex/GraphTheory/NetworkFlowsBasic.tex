@@ -130,7 +130,7 @@ bool SPFA()
             if (edge[i])
             {
                 int y = ver[i];
-                if (dis[y] > dis[x] + cost[i])
+                if (dis[y] > dis[x] + cost[i])//注意修改不等号及初始化值
                 {
                     dis[y] = dis[x] + cost[i];
                     incf[y] = min(incf[x], edge[i]);
