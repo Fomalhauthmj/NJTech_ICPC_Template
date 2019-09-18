@@ -1,0 +1,45 @@
+\section{位置DP}
+这类dp一般都会以数字出现位置作为一个维度。
+
+\subsection{杭电多校2019第一场A HDU6578 Blank}
+    \subsubsection{题目描述}
+        有 n (≤100) 个格子，向其中填入 0、1、2、3 这4个数，但是有 m (≤100) 个限制\\
+        限制 l r x ：表示 l ~ r 的格子内不同的数的个数为x\\        
+        问一共有多少种填入方案？
+    \subsubsection{解决方案}
+        \textbf{初步分析：}
+        构建dp[i][j][k][t][cur]，表示到cur位置为止，0,1,2,3四个数最后出现在位置i,j,k,t的情况数。\\
+        dp[cur][j][k][t][cur]=dp[cur][j][k][t][cur]+dp[i][j][k][t][cur−1]\\
+        dp[i][cur][k][t][cur]=dp[i][cur][k][t][cur]+dp[i][j][k][t][cur−1]\\
+        dp[i][j][cur][t][cur]=dp[i][j][cur][t][cur]+dp[i][j][k][t][cur−1]\\
+        dp[i][j][k][cur][cur]=dp[i][j][k][cur][cur]+dp[i][j][k][t][cur−1]\\
+        \textbf{(注意以上求法是对每个待求dp分别求，等号后面第二项需要迭代)}\\
+        这样当cur==r，只要依据四个数出现位置是否大于等于l就可以判断有几个不同的数，若不满足限制则令dp等于0。\\\\
+        \textbf{优化1:}
+        我们发现上面状态中一定会有一个cur，即有一维度是不会变的，但是这一维度的位置一直在变。\\
+        那么就可以构建 dp[i][j][k][cur] ，其中 i < j < k < cur （若为0可等于）： 
+        只知道 i, j, k, cur 是不同的数最后出现的位置，且i < j < k < cur （并不需要知道 i,j,k,cur对应的填入数是哪个，因为这并不影响对限制的判断）\\
+        dp[j][k][cur−1][cur]=dp[j][k][cur−1][cur]+dp[i][j][k][cur−1]\\
+        dp[i][k][cur−1][cur]=dp[i][k][cur−1][cur]+dp[i][j][k][cur−1]\\
+        dp[i][j][cur−1][cur]=dp[i][j][cur−1][cur]+dp[i][j][k][cur−1]\\
+        dp[i][j][k][cur]=dp[i][j][k][cur]+dp[i][j][k][cur−1]\\
+        \textbf{(注意以上求法是对每一个已知dp去累加至待求dp，因此不需要迭代}\\
+        分别表示 将最后一次出现位置为 i, j, k ,cur-1的数填入第cur个格子中\\\\
+        \textbf{优化2:}
+        我们发现上面状态中最后一个维度要么为cur要么为cur-1，即当前状态仅与上一个状态有关，所以可以用滚动数组优化空间。\\
+        构建 dp[i][j][k][2]，得到状态转移方程：\\
+        dp[j][k][cur−1][now]=dp[j][k][cur−1][now]+dp[i][j][k][pre]\\
+        dp[i][k][cur−1][now]=dp[i][k][cur−1][now]+dp[i][j][k][pre]\\
+        dp[i][j][cur−1][now]=dp[i][j][cur−1][now]+dp[i][j][k][pre]\\
+        dp[i][j][k][now]=dp[i][j][k][now]+dp[i][j][k][pre]\\
+        注意： 因为这里是累加，所以用滚动数组时，dp[i][j][k][pre]用完以后要清空！
+
+\subsection{杭电多校2019第一场J HDU6587 Kingdom}
+    \subsubsection{题目描述}
+        给出n(<=100)个点的树的前序遍历和中序遍历，这两个序列中某些编号未知(用0来表示)。
+        问有多少种合法的树。
+    \subsubsection{解决方案}
+        位置DP，二叉树前序和中序遍历的关系\\\\
+        最关键的不是dp的状态和方程，而是限制，\textbf{要求左子树和右子树的节点必须在对应的区间内（即不交叉，不出界）}\\
+        \textbf{记录a中节点在b中出现的位置，b中节点在a中出现的位置。}\\
+        \textbf{在每进入一个新的区间时，都检查一遍，是否a的区间中所有节点都在b的对应区间中，同理反过来再做一次}\\

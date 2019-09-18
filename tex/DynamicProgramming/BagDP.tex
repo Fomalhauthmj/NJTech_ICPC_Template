@@ -1,0 +1,285 @@
+\section{背包DP}
+
+\subsection{0-1背包 洛谷P1048 采药}
+    \subsubsection{题目描述}
+        有$n (1\le n\le 100)$株药草，每一株有一个采摘时长$a_i$和价值$b_i$ $(1\le a_i,b_i\le 100)$，给你$m (1\le m\le 1000)$时间，问最大价值是多少？
+    \subsubsection{代码}
+\begin{lstlisting}
+#include <bits/stdc++.h>
+
+using namespace std;
+const int N = 1e5 + 10;
+
+int n, m;            // 物品数量，最大容量
+int f[N];            // f[i]表示用i容量能得到的最大价值
+int c[110], v[110];  // 每一个物品的消耗和价值
+
+int main() {
+    ios::sync_with_stdio(0);
+    cin.tie(0);
+
+    int i, j;
+    cin >> m >> n;
+    for (i = 1; i <= n; i++)
+        cin >> c[i] >> v[i];
+
+    // 对于每个物品i，恰好使用j容量时，不取或取a[i]
+    // 注意j要倒着更新
+    for (i = 1; i <= n; i++)
+        for (j = m; j >= c[i]; j--)
+            f[j] = max(f[j], f[j - c[i]] + v[i]);
+
+    int ans = 0;
+    for (i = 1; i <= m; i++)
+        ans = max(ans, f[i]);
+
+    cout << ans << endl;
+
+    return 0;
+}
+\end{lstlisting}
+
+\subsection{完全背包 洛谷P1616 疯狂的采药}
+    \subsubsection{题目描述}
+        与上一题描述差不多，但此题和原题的不同点：\\
+        1.每种草药可以无限制地疯狂采摘。\\
+        2.药的种类眼花缭乱，采药时间好长好长啊！\\
+        另外，物品数$n (1\le n\le 10000)$，最大容量$m (1\le m\le 100000)$，物品消耗和价值$(1\le a_i,b_i\le 10000)$，
+        并且$n*m\le 10^7$
+    \subsubsection{代码1，直接枚举每种取的数量}
+        大概率TLE，但还是要放在这，因为有时候可能数据范围不大，但却有别的限制
+\begin{lstlisting}
+#include <bits/stdc++.h>
+
+using namespace std;
+const int N = 1e4 + 10, M = 1e5 + 10;
+
+int n, m;        // 物品数量，最大容量
+int f[M];        // f[i]表示用i容量能得到的最大价值
+int c[N], v[N];  // 每一个物品的消耗和价值
+
+int main() {
+    ios::sync_with_stdio(0);
+    cin.tie(0);
+
+    int i, j, k;
+    cin >> m >> n;
+    for (i = 1; i <= n; i++)
+        cin >> c[i] >> v[i];
+
+    // 对于每个物品i，恰好使用j容量时，取k个a[i]
+    // 注意j要倒着更新
+    for (i = 1; i <= n; i++)
+        for (j = m; j >= c[i]; j--)
+            for (k = 0; k <= j / c[i]; k++)
+                f[j] = max(f[j], f[j - k * c[i]] + k * v[i]);
+
+    int ans = 0;
+    for (i = 1; i <= m; i++)
+        ans = max(ans, f[i]);
+
+    cout << ans << endl;
+
+    return 0;
+}
+\end{lstlisting}
+    \subsubsection{代码2，巧妙地用无限取这个条件}
+        由于可以无限取，所以其实不用关心先后更新
+\begin{lstlisting}
+// 对于每个物品i，恰好使用j容量时，取k个a[i]
+// 注意j的更新顺序，非常妙
+for (i = 1; i <= n; i++)
+    for (j = c[i]; j <= m; j++)
+        f[j] = max(f[j], f[j - c[i]] + v[i]);
+}
+\end{lstlisting}
+
+\subsection{分组背包}
+    \subsubsection{问题描述}
+        有N件物品和一个容量为V的背包。第i件物品的费用是c[i]，价值是w[i]。这些物品被划分为若干组，每组中的物品互相冲突，最多选一件。求解将哪些物品装入背包可使这些物品的费用总和不超过背包容量，且价值总和最大。
+    \subsubsection{解决方案}
+        状态空间：f[k][v]表示前k组物品花费费用v能取得的最大权值\\
+        状态转移方程：\\
+        f[k][v]=max{f[k-1][v],f[k-1][v-c[i]]+w[i]|物品i属于第k组}\\
+        使用一维数组的伪代码如下：
+\begin{lstlisting}
+for 所有的组k
+    for v=V..0
+        for 所有的i属于组k
+            f[v]=max{f[v],f[v-c[i]]+w[i]}
+\end{lstlisting}
+
+\subsection{多重背包}
+    \subsubsection{问题描述}
+        有 N 种物品和一个容量是 V 的背包。\\
+        第 i 种物品最多有 si 件，每件体积是 vi，价值是 wi。\\
+        求解将哪些物品装入背包，可使物品体积总和不超过背包容量，且价值总和最大。\\
+        输出最大价值。
+    \subsubsection{解法1：直接枚举}
+        与完全背包的暴力解法相似，只要加上k<=s[i]这个条件
+    \subsubsection{解法2：二进制优化}
+\begin{lstlisting}
+#include <bits/stdc++.h>
+
+using namespace std;
+const int N = 16 * 1e3 + 10, M = 2e3 + 10;
+
+int n, m;              // 物品数量，最大容量
+int f[M];              // f[i]表示用i容量能得到的最大价值
+int s[N], v[N], w[N];  // 每一个物品的个数、消耗和价值
+
+int main() {
+    ios::sync_with_stdio(0);
+    cin.tie(0);
+
+    int i, j, cnt;
+    cin >> n >> m;
+    for (i = 1; i <= n; i++)
+        cin >> v[i] >> w[i] >> s[i];
+
+    // 二进制优化
+    cnt = n;
+    for (i = 1; i <= n; i++) {
+        int t = s[i], d = 1;
+        while (t >= d)
+            v[++cnt] = v[i] * d, w[cnt] = w[i] * d, t -= d, d <<= 1;
+        if (t)
+            v[++cnt] = v[i] * t, w[cnt] = w[i] * t;
+    }
+
+    // 0-1背包DP
+    // 注意i要从n+1开始，因为前n个是未拆分的，如果算上那么每个物品的数量就被错误的乘2了
+    for (i = n + 1; i <= cnt; i++)
+        for (j = m; j >= v[i]; j--)
+            f[j] = max(f[j], f[j - v[i]] + w[i]);
+
+    int ans = 0;
+    for (i = 1; i <= m; i++)
+        ans = max(ans, f[i]);
+
+    cout << ans << endl;
+
+    return 0;
+}
+\end{lstlisting}
+    \subsubsection{解法3：单调队列优化}
+\begin{lstlisting}
+#include <bits/stdc++.h>
+
+using namespace std;
+const int N = 1e3 + 10, M = 2e4 + 10;
+
+int n, m;              // 物品数量，最大容量
+int f[M];              // f[i]表示用i容量能得到的最大价值
+int s[N], v[N], w[N];  // 每一个物品的个数、消耗和价值
+
+struct CycQue {
+    const static int MAXSZ = M;
+    typedef pair<int, int> Ele;
+    Ele q[MAXSZ];
+    int head, tail, sz;
+    CycQue()
+        : head(1), tail(0), sz(0) {}
+    void clear() {
+        head = 1, tail = 0, sz = 0;
+    }
+    bool empty() {
+        return !sz;
+    }
+    void push_back(Ele x) {
+        // 队列满了
+        if (sz >= MAXSZ - 1)
+            sz = sz / (sz - sz);  // 除0，抛出异常
+        tail = (tail + 1) % MAXSZ, q[tail] = x, ++sz;
+    }
+    void push_front(Ele x) {
+        if (sz >= MAXSZ - 1)
+            sz = sz / (sz - sz);
+        head = (head - 1 + MAXSZ) % MAXSZ, q[head] = x, ++sz;
+    }
+    void pop_front() {
+        if (!sz)
+            sz = sz / (sz - sz);
+        head = (head + 1) % MAXSZ, --sz;
+    }
+    void pop_back() {
+        if (!sz)
+            sz = sz / (sz - sz);
+        tail = (tail - 1 + MAXSZ) % MAXSZ, --sz;
+    }
+    Ele front() {
+        if (!sz)
+            sz = sz / (sz - sz);
+        return q[head];
+    }
+    Ele back() {
+        if (!sz)
+            sz = sz / (sz - sz);
+        return q[tail];
+    }
+} q;
+
+int main() {
+    ios::sync_with_stdio(0);
+    cin.tie(0);
+
+    int i, j, b;
+    scanf("%d%d", &n, &m);
+    for (i = 1; i <= n; i++)
+        scanf("%d%d%d", &v[i], &w[i], &s[i]);
+
+    // 枚举物品
+    for (i = 1; i <= n; i++) {
+        // 枚举余数
+        for (b = 0; b < v[i]; b++) {
+            q.clear();
+            // 枚举当前取的个数
+            for (j = 0; j <= (m - b) / v[i]; j++) {
+                int t = f[b + j * v[i]] - j * w[i];
+                // 入队
+                while (!q.empty() && q.back().second <= t)
+                    q.pop_back();
+                q.push_back({j, t});
+                while (j - q.front().first > s[i])
+                    q.pop_front();
+                f[b + j * v[i]] = q.front().second + j * w[i];
+            }
+        }
+    }
+
+    int ans = 0;
+    for (i = 1; i <= m; i++)
+        ans = max(ans, f[i]);
+
+    printf("%d\n", ans);
+
+    return 0;
+}
+\end{lstlisting}
+
+\subsection{杭电多校2019第一场C HDU6580 Milk}
+    \subsubsection{题目描述}
+        有一个n*m的矩阵，左右可以随便走，但只能在每一行的中点往下走，每走一格花费时间1.
+        现在这个矩阵里放了k瓶牛奶，第i个牛奶喝下去需要ti时间
+        起点是（1，1）
+        对于每个i∈[1,k],问喝掉k瓶牛奶花费的最小时间
+    \subsubsection{解决方案}
+        首先对瓶子的横坐标离散化处理，一行一行地更新答案。
+        每到新的一行，先预处理出向左（右）走喝了\(i\)瓶水后，回到原点以及不回到原点所需要的最短时间，分别记为\(l,r,l\_back,r\_back\)。
+        然后将左右两边合并，求出喝了\(i\)瓶水后，回到或不回到原点所需时间，记为\(g,g\_back\)。
+        设\(f[i]\)为从\((1,1)\)出发，喝了\(i\)瓶水后回到当前行中点所需的最短时间，
+        则这时就可以根据\(g\)来和之前的\(f[i]\)来更新答案，并用\(g\_back\)来更新\(f\)的值。时间复杂度为\(O(k^2)\)
+
+\subsection{ICPC上海2019网络预选赛 J-Stone game}
+    \subsubsection{题目描述}
+        有n个石头，每个石头都有一个重量为$a_i$。现要取出一部分，我们设它们为集合A，则剩余部分为集合B，要求重量$A\ge B$，
+        并且当移去A中的任意一个石头$t$时，要求$(A-t)\le B$。问取法有多少种，最后输出模$1e9+7$\\
+        其中$n\le 300, a_il\le 500$，样例数$T\le 100$
+    \subsubsection{解决方案}
+        容易发现，当划分出A之后，只要移除A中\textbf{最轻的石头t}是满足题意的这种方案就是可行的。\\
+        于是我们可以先将\textbf{数组排序，然后枚举t}，对每一个t分别考虑。最暴力的想法是考虑t后面的每一个$a_i$取或不取，
+        但是这样复杂度上天。\\
+        再仔细想想，就会发现所有$a_i$加起来也就$1.5e5$，也就是可以用\textbf{背包dp}，$f(i,j)$表示$t=i$时总重量为j的方案数。
+        复杂度是？不考虑T，枚举t为$O(N)$，对于每个t，考虑其后的每个数取或不取为$O(N*1.5e5)$，总复杂度为$O(N^2*1.5*10^5)$，又上天了。\\
+        但是当我们\textbf{倒过来想}，\textbf{将数组从大到小排序}，然后从前向后枚举t，就会发现复杂度降到了$O(N*1.5*10^5)$。
+        每次$++t$，都相当于整体加上$a_t$（$a_t$必取），然后再考虑不取$a_{t-1}$的情况（$a_{t-1}$在上一个t中是必选的）。
