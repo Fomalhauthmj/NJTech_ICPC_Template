@@ -1,0 +1,88 @@
+\section{区间最大连续子段和}
+\begin{lstlisting}
+#include <bits/stdc++.h>
+
+using namespace std;
+const int N = 5e4 + 10;  // 数组大小，记得改
+
+struct Node {
+    int l, r, m;
+    int s, f, fl, fr;  // 区间的和，区间最大子段和，包含左端点的最大子段和，包含右端点的最大子段和
+} s[N * 4];
+
+// 构建线段树
+void build(int l, int r, int i) {
+    Node& fa = s[i];
+    fa.l = l, fa.r = r, fa.m = (l + r) / 2;
+    fa.s = fa.f = fa.fl = fa.fr = 0;
+    if (r - l == 1)
+        return;
+    build(l, fa.m, i * 2);
+    build(fa.m, r, i * 2 + 1);
+}
+
+// 自底向上更新
+void pushup(int i) {
+    Node &fa = s[i], &lson = s[i * 2], &rson = s[i * 2 + 1];  // 父亲 左儿子 右儿子
+    fa.s = lson.s + rson.s;
+    fa.f = max(max(lson.f, rson.f), lson.fr + rson.fl);
+    fa.fl = max(lson.fl, lson.s + rson.fl);
+    fa.fr = max(rson.fr, rson.s + lson.fr);
+}
+
+// 单点更新
+void update(int x, int p, int i) {
+    Node& fa = s[i];
+    if (fa.l == p && fa.r - fa.l == 1) {
+        fa.s = fa.f = fa.fl = fa.fr = x;
+        return;
+    }
+    if (p < fa.m)
+        update(x, p, i * 2);
+    else
+        update(x, p, i * 2 + 1);
+    // 向上更新
+    pushup(i);
+}
+
+// 作为查询的返回值
+struct Ret {
+    int f, s, fl, fr;
+};
+
+// 查询
+Ret query(int l, int r, int i) {
+    Node& fa = s[i];
+    if (fa.l == l && fa.r == r)
+        return {fa.f, fa.s, fa.fl, fa.fr};
+    if (r <= fa.m)
+        return query(l, r, i * 2);
+    else if (l >= fa.m)
+        return query(l, r, i * 2 + 1);
+    else {
+        Ret lret = query(l, fa.m, i * 2);
+        Ret rret = query(fa.m, r, i * 2 + 1);
+        return {max(max(lret.f, rret.f), lret.fr + rret.fl), lret.s + rret.s, max(lret.fl, lret.s + rret.fl), max(rret.fr, rret.s + lret.fr)};
+    }
+}
+
+int main() {
+    ios::sync_with_stdio(0);
+    cin.tie(0);
+
+    int n, m, i, x, l, r;
+    cin >> n;
+    build(1, n + 1, 1);  // 不要忘了初始化
+    for (i = 1; i <= n; i++) {
+        cin >> x;
+        update(x, i, 1);  // 修改元素
+    }
+    cin >> m;  // 询问
+    while (m--) {
+        cin >> l >> r;
+        cout << query(l, r + 1, 1).f << endl;  // 询问[l,r]，实际查询[l,r+1)，统一用左闭右开区间
+    }
+
+    return 0;
+}
+\end{lstlisting}
