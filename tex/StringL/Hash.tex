@@ -1,0 +1,63 @@
+\section{Hash}
+    Hash 的核心思想在于，暴力算法中，单次比较的时间太长了，应当如何才能缩短一些呢？\\
+    如果要求每次只能比较$O(1)$个字符，应该怎样操作呢？\\
+    我们定义一个\textbf{把string映射成int}的函数$f$，这个$f$称为是 Hash 函数。\\
+    我们需要关注的是时间复杂度和 Hash 的准确率。\\
+    通常我们采用的是多项式 Hash 的方法，即
+    $$f(s)=\sum{(s[i]*b^i)}(\bmod M)$$
+    其中$b$与$M$互质，且M越大错误率越小。(单次匹配错误率$\frac{1}{M}$，n次匹配的错误率为$\frac{n}{M}$)
+
+\subsection{基础Hash匹配}
+\begin{lstlisting}
+#include <bits/stdc++.h>
+
+using namespace std;
+typedef long long ll;
+// b和M互质；M可以尽量取大、随机化。对于本问题，无需建立关于M的数组，所以M最大可以达到1<<31大小。
+const ll N = 1e3 + 10, b = 131, M = 1 << 20;
+
+char s[2][N];  // s[0]是待匹配串，s[1]是模式串。下标从1开始
+ll len[2];     // 两串的长度
+ll Exp[N];     // Exp[i]=b^i
+
+// 返回s[l..r]的哈希值 s[l]*Exp[1]+s[l+1]*Exp[2]+..
+inline ll Hash(char s[], ll l, ll r) {
+    ll i, ret = 0;
+    for (i = 1; l + i - 1 <= r; i++)
+        ret = (ret + Exp[i] * s[l + i - 1]) % M;
+    return ret;
+}
+
+vector<ll> ans;  // 匹配子串的开始下标
+inline void match() {
+    ans.clear();
+    ll i;
+    ll h0 = Hash(s[0], 1, len[1]);  // 初始时待匹配串对应模式串那部分子串的哈希值
+    ll h1 = Hash(s[1], 1, len[1]);  // 初始时模式串的哈希值
+    for (i = 1; i <= len[0] - len[1] + 1; i++) {
+        // 若两哈希值一致，则认为匹配
+        if ((h0 - h1 * Exp[i - 1]) % M == 0)
+            ans.push_back(i);
+        h0 = (h0 - Exp[i] * s[0][i] + Exp[i + len[1]] * s[0][i + len[1]]) % M;  // 模式串向后移动，对应h0也要改变
+    }
+}
+
+int main() {
+    ios::sync_with_stdio(0);
+    cin.tie(0);
+
+    ll i, j;
+
+    // 初始化
+    Exp[0] = 1;
+    for (i = 1; i < N; i++)
+        Exp[i] = Exp[i - 1] * b % M;
+
+    cin >> (s[0] + 1) >> (s[1] + 1);
+    len[0] = strlen(s[0] + 1), len[1] = strlen(s[1] + 1);
+
+    match();
+
+    return 0;
+}
+\end{lstlisting}

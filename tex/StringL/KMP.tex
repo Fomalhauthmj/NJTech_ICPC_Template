@@ -1,0 +1,74 @@
+\section{KMP}
+    \subsection{前缀函数}
+        给定一个长度为n的字符串s（假定下标从1开始），其\textbf{前缀函数}被定义为一个长度为n的数组$\pi$，其中$\pi[i]$为
+        既是子串$s[1\dots i]$的前缀同时也是该子串的后缀的最长真前缀（proper prefix）长度。一个字符串的真前缀是其前缀但
+        不等于该字符串自身。根据定义，$\pi[1]=0$。\\\\
+        前缀函数的定义可用数学语言描述如下：
+        $$\pi[i]=\max _{k=0 \ldots i-1}\{k : s[1 \ldots k]=s[i-k+1 \ldots i]\}$$
+        举例来说，字符串abcabcd的前缀函数为$[0,0,0,1,2,3,0]$，字符串aabaaab的前缀函数为$[0,1,0,1,2,2,3]$。
+        \subsubsection{朴素算法}
+            直接按定义计算前缀函数：
+            \begin{lstlisting}
+// 朴素法求前缀函数O(n^3)，下标从1开始
+void prefix_func0(char t[], int n) {
+    int i, k;
+    for (i = 1; i <= n; i++)   // 对每一个子串
+        for (k = 0; k < i; k++)  // 枚举前缀后缀长度，并判断是否相等
+            if (!strncmp(t + 1, t + i - k + 1, k))
+                pi[i] = k;
+}
+            \end{lstlisting}
+        \subsubsection{第一个优化}
+            第一个重要的事实是相邻的前缀函数值至多增加1。（如不然，会产生矛盾）\\
+            所以当移动到下一个位置时，前缀函数要么增加1，要么不变或减少。
+            实际上，该事实已经允许我们将复杂度降至$O(n^2)$。
+            因为每一步中前缀函数至多增加1，因此在总的运行过程中，前缀函数至多增加n，同时也至多减小n。
+            这意味着我们仅需进行$O(n)$次字符串比较，所以总复杂度为$O(n^2)$。
+            \begin{lstlisting}
+void prefix_func1(char t[], int n) {
+    int i, j;
+    i = 2, j = 1;
+    while (i <= n) {
+        if (t[i] == t[j])  // 加1
+            pi[i] = pi[i - 1] + 1, ++j;
+        else {  // 开始减
+            pi[i] = pi[i - 1];
+            while (strncmp(t + i - pi[i] + 1, t + 1, pi[i]))
+                --pi[i];
+            j = pi[i] + 1;
+        }
+        ++i;
+    }
+}
+            \end{lstlisting}
+        \subsubsection{第二个优化}
+            考虑计算位置i+1的前缀函数$\pi$的值，如果$s[i+1]=s[\pi[i]+1]$，显然$\pi[i+1]=\pi[i]+1$。
+            $$ \underbrace{\overbrace{s_1 ~ s_2 ~ s_3}^{\pi[i]} ~ \overbrace{s_4}^{s_4 = s_{i+1}}}_{\pi[i+1] = \pi[i] + 1} ~ \dots ~ \underbrace{\overbrace{s_{i-2} ~ s_{i-1} ~ s_{i}}^{\pi[i]} ~ \overbrace{s_{i+1}}^{s_4 = s_{i+1}}}_{\pi[i+1] = \pi[i] + 1} $$
+            如果不是上述情况，即$s[i+1] \neq s[\pi[i]+1]$，我们需要尝试更短的字符串。为了加速，我们希望直接移动到
+            最长的长度$j<\pi[i]$，使得在位置i的前缀性质仍得以保持，也即$s[1 \dots j] = s[i-j+1 \dots i]$：
+            $$\overbrace{\underbrace{s_1 ~ s_2}_j ~ s_3 ~ s_4}^{\pi[i]} ~ \dots ~ \overbrace{s_{i-3} ~ s_{i-2} ~ \underbrace{s_{i-1} ~ s_{i}}_j}^{\pi[i]} ~ s_{i+1}$$
+            实际上，如果我们找到了这样的j，我们仅需要再次比较$s[i+1]$和$s[j+1]$。如果它们相等，则$\pi[i+1]=j+1$，
+            否则，我们就需要找小于j的最大的新的j使得前缀性质仍然保持，如此反复，直到$s[i+1]=s[j+1]$或者确实完全找不到（令$j=-1$）。
+            最后$\pi[i+1]=j+1$。\\\\
+            所以我们已经有了一个大致框架，现在仅剩的问题是对于满足$s[1 \dots j] = s[i-j+1 \dots i]$的j，
+            如何快速找到小于j的最大的新的j，我们令新的j为k，使得$s[1 \dots k] = s[i-k+1 \dots i]$仍然满足。
+            $$\overbrace{\underbrace{s_1 ~ s_2}_k ~ s_3 ~ s_4}^j ~ \dots ~ \overbrace{s_{i-3} ~ s_{i-2} ~ \underbrace{s_{i-1} ~ s_{i}}_k}^j ~s_{i+1}$$
+            由上图，我们要求的是比j小的最大的k，而两边长度为j的前后缀本身是相等的，那么新的长为k的前后缀则可以只放到最左边
+            长为j的前缀中去考虑:
+            $$\overbrace{\underbrace{s_1 ~ s_2}_k ~ \underbrace{s_3 ~ s_4}_k}^j$$
+            即$k=\pi[j]$，而$\pi[j]$之前已经求过了。
+            \begin{lstlisting}
+void prefix_func2(char t[], int n) {
+    int i, j;
+    pi[0] = -1, pi[1] = 0;  // 确实没有找到任何相等的
+    for (i = 1; i < n; ++i) {
+        j = pi[i];
+        while (j >= 0 && t[j + 1] != t[i + 1])  // 若不相等，找更小的新的j
+            j = pi[j];
+        pi[i + 1] = j + 1;  //最后得出pi[i+1]
+    }
+}
+            \end{lstlisting}
+    
+    \subsection{统计每个前缀出现次数}
+        
