@@ -10,9 +10,9 @@
             直接按定义计算前缀函数：
             \begin{lstlisting}
 // 朴素法求前缀函数O(n^3)，下标从1开始
-void prefix_func0(char t[], int n) {
+void prefix_func0(char t[], int n, int pi[]) {
     int i, k;
-    for (i = 1; i <= n; i++)   // 对每一个子串
+    for (i = 1; i <= n; i++)     // 对每一个子串
         for (k = 0; k < i; k++)  // 枚举前缀后缀长度，并判断是否相等
             if (!strncmp(t + 1, t + i - k + 1, k))
                 pi[i] = k;
@@ -25,7 +25,7 @@ void prefix_func0(char t[], int n) {
             因为每一步中前缀函数至多增加1，因此在总的运行过程中，前缀函数至多增加n，同时也至多减小n。
             这意味着我们仅需进行$O(n)$次字符串比较，所以总复杂度为$O(n^2)$。
             \begin{lstlisting}
-void prefix_func1(char t[], int n) {
+void prefix_func1(char t[], int n, int pi[]) {
     int i, j;
     i = 2, j = 1;
     while (i <= n) {
@@ -59,7 +59,7 @@ void prefix_func1(char t[], int n) {
             $$\overbrace{\underbrace{s_1 ~ s_2}_k ~ \underbrace{s_3 ~ s_4}_k}^j$$
             即$k=\pi[j]$，而$\pi[j]$之前已经求过了。
             \begin{lstlisting}
-void prefix_func2(char t[], int n) {
+void prefix_func2(char t[], int n, int pi[]) {
     int i, j;
     pi[0] = -1, pi[1] = 0;  // 确实没有找到任何相等的
     for (i = 1; i < n; ++i) {
@@ -69,8 +69,58 @@ void prefix_func2(char t[], int n) {
         pi[i + 1] = j + 1;  //最后得出pi[i+1]
     }
 }
+
             \end{lstlisting}
-    
+    \subsection{在线KMP}
+        最基础的字符串匹配。下面的算法不是在线的，但只要稍作修改就可以变成在线的了。
+        \begin{lstlisting}
+#include <bits/stdc++.h>
+
+using namespace std;
+const int N = 1e3 + 10;
+
+char s[N], t[N];  // 与OIWIKI上不一样，这里s是待匹配串，t是模式串
+int n, m;         // s和t的长度
+int pi[N];        // 前缀函数
+vector<int> ans;  // 所有出现位置
+
+inline void prefix_func(char t[], int n, int pi[]) {
+    int i, j;
+    pi[0] = -1, pi[1] = 0;
+    for (i = 1; i < n; i++) {
+        j = pi[i];
+        while (j >= 0 && t[i + 1] != t[j + 1])
+            j = pi[j];
+        pi[i + 1] = j + 1;
+    }
+}
+
+int main() {
+    ios::sync_with_stdio(0);
+    cin.tie(0);
+
+    int i, j, last;
+
+    cin >> (s + 1) >> (t + 1);
+    n = strlen(s + 1), m = strlen(t + 1);
+
+    prefix_func(t, m, pi);  // 求模式串的前缀函数
+
+    // 用类似求前缀函数的方法匹配s和t
+    last = 0;
+    for (i = 0; i < n; i++) {
+        j = last;
+        while (j >= 0 && s[i + 1] != t[j + 1])
+            j = pi[j];
+        last = j + 1;
+        if (last == m)
+            cout << i + 2 - m << " ";
+    }
+    cout << endl;
+
+    return 0;
+}
+        \end{lstlisting}
     \subsection{统计每个前缀出现次数}
         \subsubsection{单串统计}
             统计s的每个前缀在s中出现的次数。首先我们明确，一个长度为i的前缀中会出现长度为$\pi[i]$的前缀，然后长度为$\pi[i]$
@@ -79,8 +129,8 @@ void prefix_func2(char t[], int n) {
             最后再统计原始前缀，即对每个$ans[i]$加一。
             \begin{lstlisting}
 // 统计s[]的每个前缀在s[]中出现的次数
-inline void count_prefix(char s[], int n) {
-    prefix_func(s, n);  // 计算前缀函数
+inline void count_prefix(char s[], int n, int pi[]) {
+    prefix_func(s, n, pi);  // 计算前缀函数
     int i;
     for (i = 1; i <= n; i++)
         ++ans[pi[i]];
@@ -97,14 +147,13 @@ inline void count_prefix(char s[], int n) {
             给出串s和t，问t的每个前缀在s中出现的次数。首先运用类似KMP的思想，通过'\#'连接t和s，即"t\#s"，设为link，
             对link求前缀函数。接下来我们只关心与s有关的前缀函数值，即$i \ge m+2$的$\pi[i]$。
             \begin{lstlisting}
-// 统计t[]的每个前缀在s[]中出现的次数
-inline void count_prefix(char s[], int n, char t[], int m) {
+inline void count_prefix(char s[], int n, char t[], int m, int pi[]) {
     // 连接字符串 t..#s..
     strcpy(link + 1, t + 1);
     link[m + 1] = '#';
     strcpy(link + m + 2, s + 1);
     // 计算前缀函数
-    prefix_func(link, n + m + 1);
+    prefix_func(link, n + m + 1, pi);
 
     int i;
     // 只关心#后面的pi值
@@ -126,7 +175,7 @@ inline int diff(char s[], int n) {
     int i, ret = 0;
     for (i = 1; i <= n; i++) {
         reverse_copy(s + 1, s + 1 + i, t + 1);  // 翻转s并存入t
-        int mx = prefix_func2(t, i);            // 略微修改一下prefix_func，使其可以返回最大的pi值
+        int mx = prefix_func2(t, i, pi);        // 略微修改一下prefix_func，使其可以返回最大的pi值
         ret += i - mx;                          // 统计新的子串数目
     }
     return ret;
@@ -138,8 +187,8 @@ inline int diff(char s[], int n) {
         直接说结论，首先求s的前缀函数，令$k=n-\pi[n]$，若$n \bmod k = 0$，则该长度为$k$，否则为$n$。
         \begin{lstlisting}
 // 计算s的最短压缩表示，返回最短压缩的长度
-int compress(char s[], int n) {
-    prefix_func(s, n);
+int compress(char s[], int n, int pi[]) {
+    prefix_func(s, n, pi);
     int k = n - pi[n];
     if (n % k)
         return n;
@@ -155,8 +204,8 @@ int compress(char s[], int n) {
         即当前处于$t[i]$处）下一个字符为$c$的转移的目标状态。
         \begin{lstlisting}
 // 计算长度为n的字符串t[]的自动机的转移表，t[]下标从1开始
-void compute_automaton0(char t[], int n, int aut[][26]) {
-    prefix_func(t, n);  // 先求t[]的前缀函数
+void compute_automaton0(char t[], int n, int pi[], int aut[][26]) {
+    prefix_func(t, n, pi);  // 先求t[]的前缀函数
     int i, j, c;
     // 0是初始状态，匹配长度为0；n是终止状态，完全匹配
     for (i = 0; i <= n; i++) {
@@ -177,8 +226,8 @@ void compute_automaton0(char t[], int n, int aut[][26]) {
         所以我们可以直接利用$aut[\pi[i]][c]$。时间复杂度$O(|\Sigma|n)$。
         \begin{lstlisting}
 // 计算长度为n的字符串t[]的自动机的转移表，t[]下标从1开始
-void compute_automaton1(char t[], int n, int aut[][26]) {
-    prefix_func(t, n);  // 先求t[]的前缀函数
+void compute_automaton1(char t[], int n, int pi[], int aut[][26]) {
+    prefix_func(t, n, pi);  // 先求t[]的前缀函数
     int i, c;
     // 0是初始状态，匹配长度为0；n是终止状态，完全匹配
     aut[0][t[1] - 'a'] = 1;
@@ -218,8 +267,6 @@ void compute_automaton1(char t[], int n, int aut[][26]) {
         初始时，aut[i][j]可全部求出，G[i][0]=i，K[i][0]=0，因为g[0]为空串，自动机不会转移，g[0]也不会包含s。\\
         显然，最后答案为K[0][k]。
         \begin{lstlisting}
-// 自动机可能有问题
-
 #include <bits/stdc++.h>
 
 using namespace std;
@@ -232,10 +279,10 @@ int aut[N][N];  // 自动机，aut[i][j]表示当前状态通过输入j得到的
 int G[N][N];    // G(i,j)表示自动机从状态i开始处理g[j]，处理完成后自动机的状态
 int K[N][N];    // K(i,j)表示自动机从状态i开始处理g[j]，处理完成后s在g[j]中出现的次数
 
-void prefix_func(int t[], int len) {
+void prefix_func(int t[], int n, int pi[]) {
     int i, j;
     pi[0] = -1, pi[1] = 0;  // 确实没有找到任何相等的
-    for (i = 1; i < len; ++i) {
+    for (i = 1; i < n; ++i) {
         j = pi[i];
         while (j >= 0 && t[j + 1] != t[i + 1])  // 若不相等，找更小的新的j
             j = pi[j];
@@ -244,9 +291,9 @@ void prefix_func(int t[], int len) {
 }
 
 // 计算长度为n的字符串t[]的自动机的转移表，t[]下标从1开始
-void compute_automaton1(int t[], int n, int aut[][N]) {
-    t[n + 1] = -1;      // 结束符，结束符应是字母表中没有的符号
-    prefix_func(t, n);  // 先求t[]的前缀函数
+void compute_automaton1(int t[], int n, int pi[], int aut[][N]) {
+    t[n + 1] = -1;          // 结束符，结束符应是字母表中没有的符号
+    prefix_func(t, n, pi);  // 先求t[]的前缀函数
     int i, c;
     // 0是初始状态，匹配长度为0；n是终止状态，完全匹配
     aut[0][t[1]] = 1;
@@ -271,7 +318,7 @@ int main() {
     for (i = 1; i <= n; i++)
         cin >> s[i];
 
-    compute_automaton1(s, n, aut);
+    compute_automaton1(s, n, pi, aut);
 
     // 初始化，从状态i开始处理g[0]，由于g[0]是空串，所以自动机不会转移，s也不会出现在g[0]中
     for (i = 0; i <= n; i++)
@@ -310,10 +357,10 @@ int n;
 int pi[N], pi2[N][N];  // pi2[i][j]表示以i为左端点，j处的前缀函数值
 int f[N][N];           // f[i][j]表示s[i..j]被压缩后的最短长度
 
-void prefix_func(char t[], int len) {
+void prefix_func(char t[], int n, int pi[]) {
     int i, j;
     pi[0] = -1, pi[1] = 0;  // 确实没有找到任何相等的
-    for (i = 1; i < len; ++i) {
+    for (i = 1; i < n; ++i) {
         j = pi[i];
         while (j >= 0 && t[j + 1] != t[i + 1])  // 若不相等，找更小的新的j
             j = pi[j];
@@ -333,11 +380,8 @@ int main() {
         n = strlen(s + 1);
 
         // 求pi2[i][j]
-        for (i = 1; i <= n; i++) {
-            prefix_func(s + i - 1, n - i + 1);
-            for (j = i; j <= n; j++)
-                pi2[i][j] = pi[j - i + 1];
-        }
+        for (i = 1; i <= n; i++)
+            prefix_func(s + i - 1, n - i + 1, pi2[i] + i - 1);
 
         // dp求f(l,r)，s[l..r]被压缩后的最短长度
         for (i = 1; i <= n; i++) {              // 枚举长度
