@@ -156,7 +156,6 @@ int compress(char s[], int n) {
         \begin{lstlisting}
 // 计算长度为n的字符串t[]的自动机的转移表，t[]下标从1开始
 void compute_automaton0(char t[], int n, int aut[][26]) {
-    t[n + 1] = '#', t[n + 2] = 0, ++n;
     prefix_func(t, n);  // 先求t[]的前缀函数
     int i, j, c;
     // 0是初始状态，匹配长度为0；n是终止状态，完全匹配
