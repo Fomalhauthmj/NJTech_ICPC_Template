@@ -1,0 +1,429 @@
+\section{线段树练习}
+
+\subsection{区间最大连续子段和}
+\begin{lstlisting}
+#include <bits/stdc++.h>
+
+using namespace std;
+const int N = 5e4 + 10;  // 数组大小，记得改
+
+struct Node {
+    int l, r, m;
+    int s, f, fl, fr;  // 区间的和，区间最大子段和，包含左端点的最大子段和，包含右端点的最大子段和
+} s[N * 4];
+
+// 构建线段树
+void build(int l, int r, int i) {
+    Node& fa = s[i];
+    fa.l = l, fa.r = r, fa.m = (l + r) / 2;
+    fa.s = fa.f = fa.fl = fa.fr = 0;
+    if (r - l == 1)
+        return;
+    build(l, fa.m, i * 2);
+    build(fa.m, r, i * 2 + 1);
+}
+
+// 自底向上更新
+void pushup(int i) {
+    Node &fa = s[i], &lson = s[i * 2], &rson = s[i * 2 + 1];  // 父亲 左儿子 右儿子
+    fa.s = lson.s + rson.s;
+    fa.f = max(max(lson.f, rson.f), lson.fr + rson.fl);
+    fa.fl = max(lson.fl, lson.s + rson.fl);
+    fa.fr = max(rson.fr, rson.s + lson.fr);
+}
+
+// 单点更新
+void update(int x, int p, int i) {
+    Node& fa = s[i];
+    if (fa.l == p && fa.r - fa.l == 1) {
+        fa.s = fa.f = fa.fl = fa.fr = x;
+        return;
+    }
+    if (p < fa.m)
+        update(x, p, i * 2);
+    else
+        update(x, p, i * 2 + 1);
+    // 向上更新
+    pushup(i);
+}
+
+// 作为查询的返回值
+struct Ret {
+    int f, s, fl, fr;
+};
+
+// 查询
+Ret query(int l, int r, int i) {
+    Node& fa = s[i];
+    if (fa.l == l && fa.r == r)
+        return {fa.f, fa.s, fa.fl, fa.fr};
+    if (r <= fa.m)
+        return query(l, r, i * 2);
+    else if (l >= fa.m)
+        return query(l, r, i * 2 + 1);
+    else {
+        Ret lret = query(l, fa.m, i * 2);
+        Ret rret = query(fa.m, r, i * 2 + 1);
+        return {max(max(lret.f, rret.f), lret.fr + rret.fl), lret.s + rret.s, max(lret.fl, lret.s + rret.fl), max(rret.fr, rret.s + lret.fr)};
+    }
+}
+
+int main() {
+    ios::sync_with_stdio(0);
+    cin.tie(0);
+
+    int n, m, i, x, l, r;
+    cin >> n;
+    build(1, n + 1, 1);  // 不要忘了初始化
+    for (i = 1; i <= n; i++) {
+        cin >> x;
+        update(x, i, 1);  // 修改元素
+    }
+    cin >> m;  // 询问
+    while (m--) {
+        cin >> l >> r;
+        cout << query(l, r + 1, 1).f << endl;  // 询问[l,r]，实际查询[l,r+1)，统一用左闭右开区间
+    }
+
+    return 0;
+}
+\end{lstlisting}
+
+\subsection{最长单峰序列的下标的最小字典序和最大字典序}
+    简化问题，只考虑最小字典序。那么与LIS类似，能选就选就可以得到最小字典序。\\\\
+    选哪些？\textbf{被包含在最长单峰序列中的元素}\\\\
+    如何知道是否被包含？\\
+    类比LIS，如果a[i]被包含，那么\textbf{最长长度-a[i]之前选的个数=以a[i]为开头的最长长度}。\\
+    然后考虑两种情况：1.a[i]在峰的左侧，已选个数+以a[i]为开头的单峰序列长度；
+    2.a[i]为峰或在峰的右侧，已选个数+以a[i]为开头的递减序列长度\\\\
+    于是我们就需要维护两个量：\\
+    1.\textbf{以a[i]为开头的单峰序列长度}\\
+    2.\textbf{以a[i]为开头的递减序列长度}\\\\
+    递减的就直接LIS很简单。对于单峰：\\
+    倒过来维护，设以a[i]为开头的单峰序列最长长度为peak[i]，\\
+    \textbf{peak[i]=max(以比a[i]大的数为开头的单峰最大长度+1, 以a[i]为开头的递减序列最大长度)}\\
+    而维护以比a[i]大的数为开头的单峰最大长度可以用\textbf{权值线段树}
+\begin{lstlisting}
+/*
+求 最长 单峰 序列 的 下标 的 最小字典序 和 最大字典序
+
+首先用LIS求出以a[i]开头的严格递减序列的最长长度，
+再用线段树求以a[i]开头的单峰序列的最长长度(倒着求)
+求最小字典序即要求:
+1. a[i] > pre && L - cnt == peak[i]
+2. a[i] < pre && L - cnt == d[i]
+*/
+
+#include <bits/stdc++.h>
+
+using namespace std;
+const int N = 3e5 + 10;
+int a[N], n;
+int i2x[N];   // 离散化
+int m;        // 离散化后的长度
+int c[N];     // LIS的dp数组
+int d[N];     // d[i]:以a[i]开头递减序列最长长度
+int peak[N];  // peak[i]:以a[i]开头的单峰序列最长长度
+int ans[N];
+
+inline int x2i(int x) {
+    return lower_bound(i2x + 1, i2x + 1 + m, x) - i2x;
+}
+
+// 权值线段树，维护
+struct Node {
+    int l, r, m;
+    int mx;  // [l,r)中的最大值
+} t[4 * N];  // 数组大小不要忘记 * 4
+
+inline void pushup(int x) {
+    Node& cur = t[x];
+    if (cur.r - cur.l == 1)
+        return;
+    Node &lch = t[x * 2], &rch = t[x * 2 + 1];
+    cur.mx = max(lch.mx, rch.mx);
+}
+
+void build(int l, int r, int x) {
+    Node& cur = t[x];
+    cur.l = l, cur.r = r, cur.m = (l + r) / 2;
+    cur.mx = 0;
+    if (r - l == 1)
+        return;
+    build(l, cur.m, x * 2);
+    build(cur.m, r, x * 2 + 1);
+    pushup(x);
+}
+
+void update(int l, int r, int x, int v) {
+    Node& cur = t[x];
+    if (cur.l == l && cur.r == r) {
+        cur.mx = v;
+        return;
+    }
+    if (r <= cur.m)
+        update(l, r, x * 2, v);
+    else if (l >= cur.m)
+        update(l, r, x * 2 + 1, v);
+    else
+        update(l, cur.m, x * 2, v), update(cur.m, r, x * 2 + 1, v);
+    pushup(x);
+}
+
+int query(int l, int r, int x) {
+    Node& cur = t[x];
+    if (cur.l == l && cur.r == r)
+        return cur.mx;
+    int mx = 0;
+    if (r <= cur.m)
+        mx = query(l, r, x * 2);
+    else if (l >= cur.m)
+        mx = query(l, r, x * 2 + 1);
+    else
+        mx = max(query(l, cur.m, x * 2), query(cur.m, r, x * 2 + 1));
+    return mx;
+}
+
+inline void LIS() {
+    int i, j, mx = 0;
+    for (i = 1; i <= n; i++) {
+        j = lower_bound(c + 1, c + 1 + mx, a[i]) - c;
+        d[i] = j, c[j] = a[i], mx = max(mx, j);
+    }
+}
+
+inline void work() {
+    int i;
+
+    // 求以a[i]为开头的最长下降子序列的长度
+    reverse(a + 1, a + 1 + n);
+    LIS();
+    reverse(a + 1, a + 1 + n);
+    reverse(d + 1, d + 1 + n);
+
+    // 通过权值线段树维护以a[i]为开头的单峰序列的最大长度
+    build(1, m + 1, 1);
+    for (i = n; i >= 1; i--) {
+        int x = 0;
+        if (a[i] + 1 < m + 1)
+            x = query(a[i] + 1, m + 1, 1);   // 查询以比a[i]大的数为开头的单峰序列的最大长度
+        peak[i] = max(x + 1, d[i]);          // a[i]可以在峰的左侧(原单峰加上a[i])，也可以就是峰或峰的右侧(单调减)
+        update(a[i], a[i] + 1, 1, peak[i]);  // 将以a[i]为开头的单峰添加进权值线段树
+    }
+}
+
+inline int getAns() {
+    int L = query(1, m + 1, 1);  // 单峰最大长度
+    int cnt = 0, pre = 0, i;     // cnt是已经求得的个数，pre是上一个的值
+    // 求单峰的上升部分
+    for (i = 1; i <= n; i++) {
+        // 如果a[i]被包含在最长里
+        if (a[i] > pre && L - cnt == peak[i])
+            ans[++cnt] = i, pre = a[i];
+        // 如果可以转为下降，就停止上升
+        else if (a[i] < pre && L - cnt == d[i])
+            break;
+    }
+    // 单峰的下降部分
+    for (; i <= n; i++)
+        if (a[i] < pre && L - cnt == d[i])
+            ans[++cnt] = i, pre = a[i];
+    return cnt;
+}
+
+int main() {
+    int i;
+    while (scanf("%d", &n) != EOF) {
+        for (i = 1; i <= n; i++) {
+            scanf("%d", &a[i]);
+            i2x[i] = a[i];
+            ans[i] = c[i] = d[i] = peak[i] = 0;
+        }
+
+        sort(i2x + 1, i2x + 1 + n);
+        m = unique(i2x + 1, i2x + 1 + n) - i2x - 1;
+        for (i = 1; i <= n; i++)
+            a[i] = x2i(a[i]);
+
+        work();
+        int cnt = getAns();
+        for (i = 1; i <= cnt; i++) {
+            if (i > 1)
+                printf(" ");
+            printf("%d", ans[i]);
+        }
+        printf("\n");
+
+        for (i = 1; i <= n; i++)
+            ans[i] = c[i] = d[i] = peak[i] = 0;
+
+        reverse(a + 1, a + 1 + n);
+        work();
+        cnt = getAns();
+        for (i = cnt; i >= 1; i--) {
+            if (i < cnt)
+                printf(" ");
+            printf("%d", n - ans[i] + 1);
+        }
+        printf("\n");
+    }
+
+    return 0;
+}
+\end{lstlisting}
+
+\subsection{HDU6602 Longest Subarray}
+    \subsubsection{题目描述}
+        给你一个数组，数的范围是$[1,C]$，给定$K$，让你找一个最长的区间使得区间内任意一个出现的数在该区间内的数量都大于$K$。
+    \subsubsection{解决方案}
+        主要思路：\textbf{尺取法，枚举右端点，用线段树维护左端点的可行区间}\\
+        本题求一个最大的子区间，满足区间内的数字要么出现次数大于等于k次，要么没出现过。给定区间内的数字范围是1到c。\\
+        如果r为右边界，对于一种数字x，满足条件的左边界l的范围是r左边第一个x出现的位置+1(即这段区间内没有出现过x，
+        如果x在1到r内都没有出现过，那么1到r自然都是l的合法范围)，以及1到从右往左数数第k个x出现的位置(即这段区间内
+        的x出现次数大于等于k)。所以我们只要找到同时是c种数字的合法左边界的位置中最小的，然后枚举所有的i作为右边界即可得出答案。\\
+        由此，我们可以令线段树的叶子节点中的值表示可以作为多少种数字的左端点。然后对每一次查询，我们都尽量向左查最大值为c的节点，
+        返回下标。
+\begin{lstlisting}
+/*
+尺取法
+移动右端点，用线段树维护左端点的可行区间
+
+思维；线段树区间修改，区间最大值，lazy标记
+*/
+
+#include <bits/stdc++.h>
+
+using namespace std;
+const int N = 2e5 + 10;
+
+int n;  // 长度
+int c, k, a[N];
+
+struct Node {
+    int l, r, m;
+    int mx;   // [l,r)中的最大值
+    int tag;  // lazy标记
+} t[4 * N];   // 数组大小不要忘记 * 4
+
+inline void pushdown(int x) {
+    Node& cur = t[x];
+    if (cur.r - cur.l == 1)
+        return;
+    Node &lch = t[x * 2], &rch = t[x * 2 + 1];
+    lch.mx += cur.tag, rch.mx += cur.tag;
+    lch.tag += cur.tag, rch.tag += cur.tag;
+    cur.tag = 0;
+}
+
+inline void pushup(int x) {
+    Node& cur = t[x];
+    if (cur.r - cur.l == 1)
+        return;
+    Node &lch = t[x * 2], &rch = t[x * 2 + 1];
+    cur.mx = max(lch.mx, rch.mx);
+}
+
+void build(int l, int r, int x) {
+    Node& cur = t[x];
+    cur.l = l, cur.r = r, cur.m = (l + r) / 2;
+    cur.mx = 0, cur.tag = 0;  // 初始化最大值、lazy标记
+    if (r - l == 1)
+        return;
+    build(l, cur.m, x * 2);
+    build(cur.m, r, x * 2 + 1);
+    pushup(x);  // 若初始值非0，则这句一定要加
+}
+
+void update(int l, int r, int x, int v) {
+    Node& cur = t[x];
+    if (cur.l == l && cur.r == r) {
+        cur.tag += v, cur.mx += v;  // 打标记的时候一定是同时更新max的
+        return;
+    }
+    pushdown(x);
+    if (r <= cur.m)
+        update(l, r, x * 2, v);
+    else if (l >= cur.m)
+        update(l, r, x * 2 + 1, v);
+    else
+        update(l, cur.m, x * 2, v), update(cur.m, r, x * 2 + 1, v);
+    pushup(x);
+}
+
+int query(int l, int r, int x) {
+    Node& cur = t[x];
+    pushdown(x);
+    if (cur.r - cur.l == 1)
+        return cur.l;
+    Node &lch = t[x * 2], &rch = t[x * 2 + 1];
+    int p = 0;
+    if (r <= cur.m)
+        p = query(l, r, x * 2);
+    else if (l >= cur.m)
+        p = query(l, r, x * 2 + 1);
+    else {
+        if (lch.mx == c)
+            p = query(l, cur.m, x * 2);
+        else
+            p = query(cur.m, r, x * 2 + 1);
+    }
+
+    return p;
+}
+
+vector<int> pos[N];  // pos[x]是x出现的所有位置
+
+int main() {
+    int i, l, r, sz, ans = 0;
+
+    while (scanf("%d%d%d", &n, &c, &k) != EOF) {
+        for (i = 1; i <= n; i++)
+            scanf("%d", &a[i]);
+        if (n == 0) {
+            printf("0\n");
+            continue;
+        }
+        if (k == 0 || k == 1) {
+            printf("%d\n", n);
+            continue;
+        }
+        ans = 0;
+        for (i = 1; i <= c; i++)
+            pos[i].clear();
+
+        build(1, n + 1, 1);
+
+        // 枚举右端点
+        for (i = 1; i <= n; i++) {
+            // 对于[i,i]，它可以作为除去它本身以外的c-1个数的左端点。所以位置i要加上c-1
+            update(i, i + 1, 1, c - 1);
+            // 关于a[i]，在它上一次出现的位置和当前位置i之间的位置，在转移来i之前是可以当做a[i]的左端点的(即a[i]出现0次)
+            // 但是现在右端点为a[i]，那么这些位置就不可再作为a[i]的左端点了(除非k<=1，这个作为特殊情况考虑)，所以这一段要减1
+            sz = pos[a[i]].size();
+            if (sz) {
+                l = *pos[a[i]].rbegin();
+                if (l + 1 < i)
+                    update(l + 1, i - 1 + 1, 1, -1);
+            } else {
+                if (1 < i)
+                    update(1, i, 1, -1);
+            }
+            // 当前a[i]还可以使之前已经出现k-1次的一段由不可以作为a[i]的左端点变为可以作为a[i]的左端点。(如果有的话)
+            if (sz >= k - 1) {
+                r = pos[a[i]][sz - k + 1], l = 1;
+                if (sz >= k)
+                    l = pos[a[i]][sz - k] + 1;
+                if (l <= r)
+                    update(l, r + 1, 1, 1);
+            }
+            pos[a[i]].push_back(i);
+            // 最后查询能被c个数作为左端点的最左位置
+            if (t[1].mx == c)
+                ans = max(ans, i - query(1, i + 1, 1) + 1);
+        }
+        cout << ans << endl;
+    }
+
+    return 0;
+}
+\end{lstlisting}
