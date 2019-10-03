@@ -35,26 +35,3 @@ POJ2226 Muddy Fields（行列连续块，二分图最小覆盖）
 例题分析
 
 6902 Vani和Cl2捉迷藏（最小路径可重复点覆盖，构造方案）
-\begin{lstlisting}
-// 构造方案，先把所有路径终点（左部非匹配点）作为藏身点
-for (int i = 1; i <= n; i++) succ[match[i]] = true;
-for (int i = 1, k = 0; i <= n; i++)
-    if (!succ[i]) hide[++k] = i;
-memset(vis, 0, sizeof(vis));
-bool modify = true;
-while (modify) {
-    modify = false;
-    // 求出 next(hide)
-    for (int i = 1; i <= ans; i++) 
-        for (int j = 1; j <= n; j++)
-            if (cl[hide[i]][j]) vis[j] = true;
-    for (int i = 1; i <= ans; i++)
-        if (vis[hide[i]]) {
-            modify = true;
-            // 不断向上移动
-            while (vis[hide[i]]) hide[i] = match[hide[i]];
-        }
-}
-for (int i = 1; i <= ans; i++) printf("%d ", hide[i]);
-cout << endl;
-\end{lstlisting}
