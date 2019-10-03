@@ -1,117 +1,74 @@
 \section{线段树}
-
-\subsection{基础操作}
 \begin{lstlisting}
-const int N = 1e5 + 10;
-#define ls(a) (a << 1)
-#define rs(a) (a << 1 | 1)
-struct node
+struct SegmentTree
 {
-    int val;
-    int lazy;
-};
-node tree[N << 2];
-int a[N];
+    int l, r;
+    ll sum, add;
+    #define ls(x) (x << 1)
+    #define rs(x) (x << 1 | 1)
+    #define l(x) tree[x].l
+    #define r(x) tree[x].r
+    #define sum(x) tree[x].sum
+    #define add(x) tree[x].add
+} tree[N << 2];
 void PushUp(int rt)
 {
-    tree[rt].val = tree[ls(rt)].val + tree[rs(rt)];
+    sum(rt) = (sum(ls(rt)) + sum(rs(rt))) % mod;
 }
-void PushDown(int ls, int rs, int rt)
+void PushDown(int rt)
 {
-    tree[ls(rt)].val += ls * tree[rt].lazy;
-    tree[rs(rt)].val += rs * tree[rt].lazy;
-    tree[ls(rt)].lazy += tree[rt].lazy;
-    tree[rs(rt)].lazy += tree[rt].lazy;
-    tree[rt].lazy = 0;
-}
-void Build(int left, int right, int rt)
-{
-    if (left == right)
+    if (add(rt))
     {
-        tree[rt].val = a[left];
+        sum(ls(rt)) = (sum(ls(rt)) + add(rt) * (r(ls(rt)) - l(ls(rt)) + 1)) % mod;
+        sum(rs(rt)) = (sum(rs(rt)) + add(rt) * (r(rs(rt)) - l(rs(rt)) + 1)) % mod;
+        add(ls(rt)) = (add(ls(rt)) + add(rt)) % mod;
+        add(rs(rt)) = (add(rs(rt)) + add(rt)) % mod;
+        add(rt) = 0;
+    }
+}
+void SegmentTree_Build(int rt, int l, int r)
+{
+    l(rt) = l, r(rt) = r;
+    if (l == r)
+    {
+        sum(rt) = weight[l];
         return;
     }
-    int mid = (left + right) >> 1;
-    Build(left, mid, ls(rt));
-    Build(mid + 1, right, rs(rt));
+    int mid = (l + r) >> 1;
+    SegmentTree_Build(ls(rt), l, mid);
+    SegmentTree_Build(rs(rt), mid + 1, r);
     PushUp(rt);
     //向上更新
 }
-\end{lstlisting}
-
-\subsection{单点更新}
-\begin{lstlisting}
-void Update(int left, int right, int rt, int pos, int val)
+void Update(int rt, int l, int r, int d)
 {
-    if (left == right && left == pos)
+    if (l <= l(rt) && r(rt) <= r)
     {
-        tree[rt].val += val;
+        sum(rt) = (sum(rt) + (r(rt) - l(rt) + 1) * d) % mod;
+        add(rt) = (add(rt) + d) % mod;
         return;
     }
-    int mid = (left + right) >> 1;
-    if (tree[rt].lazy)
-    {
-        PushDown(mid - left + 1, right - mid, rt);
-    }
-    if (mid >= pos)
-        Update(left, mid, ls(rt), pos, val);
-    else if (pos > mid)
-        Update(mid + 1, right, rs(rt), pos, val);
+    PushDown(rt);
+    int mid = (l(rt) + r(rt)) >> 1;
+    if (l <= mid)
+        Update(ls(rt), l, r, d);
+    if (r > mid)
+        Update(rs(rt), l, r, d);
     PushUp(rt);
 }
-\end{lstlisting}
-\emph{例题：https://www.luogu.org/problemnew/show/P3372}
-
-\subsection{区间更新}
-\begin{lstlisting}
-void Update(int left, int right, int rt, int s, int t, int val)
+ll Query(int rt, int l, int r)
 {
-    if (left >= s && right <= t)
+    if (l(rt) >= l && r(rt) <= r)
     {
-        tree[rt].val += (right - left + 1) * val;
-        tree[rt].lazy += val;
-        return;
+        return sum(rt) % mod;
     }
-    int mid = (left + right) >> 1;
-    if (tree[rt].lazy)
-    {
-        PushDown(mid - left + 1, right - mid, rt);
-    }
-    if (mid < s)
-        Update(mid + 1, right, rs(rt), s, t, val);
-    else if (mid >= t)
-        Update(left, mid, ls(rt), s, t, val);
-    else
-    {
-        Update(left, mid, ls(rt), s, t, val);
-        Update(mid + 1, right, rs(rt), s, t, val);
-    }
-    PushUp(rt);
-}
+    PushDown(rt);
+    ll ret = 0;
+    int mid = (l(rt) + r(rt)) >> 1;
+    if (l <= mid)
+        ret = (ret + Query(ls(rt), l, r)) % mod;
+    if (r > mid)
+        ret = (ret + Query(rs(rt), l, r)) % mod;
+    return ret;
+}    
 \end{lstlisting}
-
-\subsection{区间查询}
-\begin{lstlisting}
-void Query(int left, int right, int s, int t, int rt)
-{
-    if (left >= s && right <= t)
-    {
-        return tree[rt].val;
-    }
-    int mid = (left + right) >> 1;
-    if (tree[rt].lazy)
-        PushDown(mid - left + 1, right - mid, rt);
-    long long sum = 0;
-    if (mid < s)
-        sum += Query(mid + 1, right, rs(rt), s, t, val);
-    else if (mid >= t)
-        sum += Query(left, mid, ls(rt), s, t, val);
-    else
-    {
-        sum += Query(left, mid, ls(rt), s, t, val);
-        sum += Query(mid + 1, right, rs(rt), s, t, val);
-    }
-    return sum;
-}
-\end{lstlisting}
-\emph{例题：https://www.luogu.org/problemnew/show/P3373}
