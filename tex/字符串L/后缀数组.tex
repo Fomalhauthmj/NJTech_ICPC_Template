@@ -654,8 +654,242 @@ int main() {
 
 /*
 aabaaaab
-4 6 8 1 2 3 5 7
 4 5 6 1 7 2 8 3
+4 6 8 1 2 3 5 7
 0 3 2 3 1 2 0 1
 */
+\end{lstlisting}
+    \subsection{DC3算法}
+        与小常数模板基本一样。不同的是dc3()会递归，所以预处理rk不能放在dc3()内
+\begin{lstlisting}
+#include <bits/stdc++.h>
+using namespace std;
+
+#define F(x) ((x) / 3 + ((x) % 3 == 1 ? 0 : tb))
+#define G(x) ((x) < tb ? (x)*3 + 1 : ((x)-tb) * 3 + 2)
+const int N = 3e5 + 10;
+char s[N];
+int r[N], n;
+int sa[N], rk[N], ht[N];
+int wa[N], wb[N], wv[N], bs[N];
+int c0(int* r, int a, int b) {
+    return r[a] == r[b] && r[a + 1] == r[b + 1] && r[a + 2] == r[b + 2];
+}
+int c12(int k, int* r, int a, int b) {
+    if (k == 2)
+        return r[a] < r[b] || r[a] == r[b] && c12(1, r, a + 1, b + 1);
+    else
+        return r[a] < r[b] || r[a] == r[b] && wv[a + 1] < wv[b + 1];
+}
+void sort(int* r, int* a, int* b, int n, int m) {
+    int i;
+    for (i = 0; i < n; i++)
+        wv[i] = r[a[i]];
+    for (i = 0; i < m; i++)
+        bs[i] = 0;
+    for (i = 0; i < n; i++)
+        bs[wv[i]]++;
+    for (i = 1; i < m; i++)
+        bs[i] += bs[i - 1];
+    for (i = n - 1; i >= 0; i--)
+        b[--bs[wv[i]]] = a[i];
+    return;
+}
+void dc3(int* r, int* sa, int n, int m) {
+    int i, j, *rn = r + n, *san = sa + n, ta = 0, tb = (n + 1) / 3, tbc = 0, p;
+    r[n] = r[n + 1] = 0;
+    for (i = 0; i < n; i++)
+        if (i % 3 != 0)
+            wa[tbc++] = i;
+    sort(r + 2, wa, wb, tbc, m);
+    sort(r + 1, wb, wa, tbc, m);
+    sort(r, wa, wb, tbc, m);
+    for (p = 1, rn[F(wb[0])] = 0, i = 1; i < tbc; i++)
+        rn[F(wb[i])] = c0(r, wb[i - 1], wb[i]) ? p - 1 : p++;
+    if (p < tbc)
+        dc3(rn, san, tbc, p);
+    else
+        for (i = 0; i < tbc; i++)
+            san[rn[i]] = i;
+    for (i = 0; i < tbc; i++)
+        if (san[i] < tb)
+            wb[ta++] = san[i] * 3;
+    if (n % 3 == 1)
+        wb[ta++] = n - 1;
+    sort(r, wb, wa, ta, m);
+    for (i = 0; i < tbc; i++)
+        wv[wb[i] = G(san[i])] = i;
+    for (i = 0, j = 0, p = 0; i < ta && j < tbc; p++)
+        sa[p] = c12(wb[j] % 3, r, wa[i], wb[j]) ? wa[i++] : wb[j++];
+    for (; i < ta; p++)
+        sa[p] = wa[i++];
+    for (; j < tbc; p++)
+        sa[p] = wb[j++];
+    return;
+}
+
+// O(n)求height数组
+void getHeight(int r[], int sa[], int rk[], int ht[], int n) {
+    int i, k;
+    // 预处理height
+    for (i = 1, k = 0; i <= n; ++i) {
+        k -= k > 0;                               // ht[rk[i]] >= ht[rk[i]-1] - 1 且 ht[] >= 0
+        while (r[i + k] == r[sa[rk[i] - 1] + k])  // 暴力求lcp
+            ++k;
+        ht[rk[i]] = k;
+    }
+}
+
+// 初始化sa[] rk[] ht[]。  r[]是拼接后的数组  len是r[]的长度  mx是r[]中最大的值
+void initSaRkHt(int r[], int len, int mx, int sa[], int rk[], int ht[]) {
+    int i;
+    dc3(r + 1, sa, len + 1, mx + 1);  // 这里注意是len+1,mx+1。填r+1是为了在接下来的处理中可以当成下标从1开始
+    // 比原模板多出这两行是为了将下标从0..n-1映射为1..n
+    for (i = 1; i <= len; ++i)
+        ++sa[i];
+    // 预处理rank
+    for (i = 1; i <= len; ++i)
+        rk[sa[i]] = i;
+    // 下面下标统一为 r[1..n]  sa[1..n]=[1..n]  rk[1..n]=[1..n]   (与原模板一致)
+    getHeight(r, sa, rk, ht, len);
+}
+
+int main() {
+    int i, mx;  // mx是r[]中的最大值
+    cin >> s + 1;
+    n = strlen(s + 1);
+
+    // 关键就是这几行
+    for (i = 1; i <= n; ++i)
+        r[i] = s[i], mx = max(mx, r[i]);
+    r[n + 1] = 0;  // 规定r[n+1]为0
+    initSaRkHt(r, n, mx, sa, rk, ht);
+
+    for (i = 1; i <= n; ++i)
+        cout << sa[i] << " ";
+    cout << endl;
+    for (i = 1; i <= n; ++i)
+        cout << rk[i] << " ";
+    cout << endl;
+    for (i = 1; i <= n; ++i)
+        cout << ht[i] << " ";
+    cout << endl;
+
+    return 0;
+}
+
+/*
+aabaaaab
+4 5 6 1 7 2 8 3
+4 6 8 1 2 3 5 7
+0 3 2 3 1 2 0 1
+*/
+\end{lstlisting}
+    \subsection{height数组求不小于k个字符串的最长子串}
+        给定 n 个字符串,求出现在不小于 k 个字符串中的最长子串。\\
+        将 n 个字符串连起来,中间用不相同的且没有出现在字符串中的字符隔开,
+        求后缀数组。然后二分答案,用和例 3 同样的方法将后缀分成若干组,判断每组
+        的后缀是否出现在不小于 k 个的原串中。这个做法的时间复杂度为 O(nlogn)。
+\begin{lstlisting}
+string s[SN];
+int bel[N];    // 每个后缀的所属
+bool vis[SN];  // 标记分组是否存在该原串
+int tmp[SN];   // 记录vis[]中哪些被置1
+
+// n个字符串；不小于k个；拼接总长len
+int solve(int n, int k, int len) {
+    memset(vis, 0, sizeof(vis));
+    int cnt = 0, i, l = 1, r = SL, mid, ans = 0, ok;  // cnt是所属不同串的个数
+    while (l <= r) {
+        ok = 0;
+        mid = (l + r) / 2;                                 // 当前长度
+        for (i = 1, ht[len + 1] = 0; i <= len + 1; ++i) {  // 为了处理最后一组，这里做到了n+1。所以要注意初始化问题
+            if (ht[i] < mid) {                             // 已经到了下一个分组，结算上一分组
+                if (cnt >= k)
+                    ans = max(ans, mid), ok = 1;
+                while (cnt)
+                    vis[tmp[cnt--]] = 0;
+            }
+            if (i <= len && bel[sa[i]] && vis[bel[sa[i]]] == 0)
+                vis[tmp[++cnt] = bel[sa[i]]] = 1;
+        }
+        if (ok)
+            l = mid + 1;
+        else
+            r = mid - 1;
+    }
+    return ans;
+}
+
+int main() {
+    int i, j, mx, n, k, len;  // mx是r[]中的最大值，n个字符串，要求不小于k个
+    cin >> n >> k;
+    for (i = 1; i <= n; ++i)
+        cin >> s[i];
+
+    // 关键就是这几行
+    mx = len = 0;
+    for (i = 1; i <= n; ++i) {
+        for (j = 0; j < s[i].length(); ++j)
+            r[++len] = s[i][j] + n, mx = max(mx, r[len]), bel[len] = i;  // bel[]每一个后缀属于哪个串
+        r[++len] = i, bel[len] = 0;                                      // 分隔符要求不相同，否则height数组会出错
+    }
+    r[len--] = 0;                     // 上面末尾多加了个1，改为0，len-1
+    initSaRkHt(r, len, mx, sa, rk, ht);
+
+    cout << solve(n, k, len) << endl;
+
+    return 0;
+}
+\end{lstlisting}
+    \subsection{height数组求在每个串中都不相交的出现两次的最长子串}
+        给定 n 个字符串,求在每个字符串中至少出现两次且不重叠的最长子串。\\
+        做法和上题大同小异,也是先将 n 个字符串连起来,中间用不相同的且没有
+        出现在字符串中的字符隔开,求后缀数组。然后二分答案,再将后缀分组。判断
+        的时候,要看是否有一组后缀在每个原来的字符串中至少出现两次,并且在每个
+        原来的字符串中,后缀的起始位置的最大值与最小值之差是否不小于当前答案
+        (判断能否做到不重叠,如果题目中没有不重叠的要求,那么不用做此判断)。
+        这个做法的时间复杂度为 O(nlogn)。
+\begin{lstlisting}
+string s[SN];
+int bel[N];      // 每个后缀的所属
+int pos[SN][2];  // 出现的最开始位置和最末尾位置
+int tmp[SN];     // 子串已经在哪些串中出现
+// n个字符串；拼接总长len
+int solve(int n, int len) {
+    // memset(pos, 0, sizeof(pos)); // 初始化
+    int cnt = 0, i, l = 1, r = SL, mid, ans = 0, ok;  // cnt是所属不同串的个数
+    for (i = 0; i <= n; ++i)
+        pos[i][0] = 1e9, pos[i][1] = 0;  // 初始化，最小值赋最大，最大值赋最小
+    while (l <= r) {
+        ok = 0;                                            // 标记当前长度下是否可以产生答案
+        mid = (l + r) / 2;                                 // 当前长度
+        for (i = 1, ht[len + 1] = 0; i <= len + 1; ++i) {  // 为了处理最后一组，这里做到了n+1。所以要注意初始化问题
+            if (ht[i] < mid) {                             // 已经到了下一个分组，结算上一分组
+                if (cnt == n) {                            // 若n个串中都出现了
+                    bool flag = 1;
+                    for (int j = 1; j <= n; ++j)
+                        if (pos[j][1] - pos[j][0] < mid)  // 判断是否重叠
+                            flag = 0;
+                    if (flag)  //
+                        ans = max(ans, mid), ok = 1;
+                }
+                while (cnt)
+                    pos[tmp[cnt]][0] = 1e9, pos[tmp[cnt]][1] = 0, cnt--;
+            }
+            if (i <= len && bel[sa[i]]) {     // 过滤分隔符
+                if (pos[bel[sa[i]]][1] == 0)  // 该串是第一次出现
+                    tmp[++cnt] = bel[sa[i]];
+                pos[bel[sa[i]]][0] = min(pos[bel[sa[i]]][0], sa[i]);  // 更新最大最小值
+                pos[bel[sa[i]]][1] = max(pos[bel[sa[i]]][1], sa[i]);
+            }
+        }
+        if (ok)
+            l = mid + 1;
+        else
+            r = mid - 1;
+    }
+    return ans;
+}
+// main函数基本与上一个一模一样
 \end{lstlisting}
