@@ -668,8 +668,10 @@ using namespace std;
 #define F(x) ((x) / 3 + ((x) % 3 == 1 ? 0 : tb))
 #define G(x) ((x) < tb ? (x)*3 + 1 : ((x)-tb) * 3 + 2)
 const int N = 3e5 + 10;
-char s[N];
-int r[N], n;
+
+char s[N];  // 输入字串
+
+int r[N];
 int sa[N], rk[N], ht[N];
 int wa[N], wb[N], wv[N], bs[N];
 int c0(int* r, int a, int b) {
@@ -745,7 +747,7 @@ void initSaRkHt(int r[], int len, int mx, int sa[], int rk[], int ht[]) {
     int i;
     dc3(r + 1, sa, len + 1, mx + 1);  // 这里注意是len+1,mx+1。填r+1是为了在接下来的处理中可以当成下标从1开始
     // 比原模板多出这两行是为了将下标从0..n-1映射为1..n
-    for (i = 1; i <= len; ++i)
+    for (sa[0] = 0, i = 1; i <= len; ++i)
         ++sa[i];
     // 预处理rank
     for (i = 1; i <= len; ++i)
@@ -755,7 +757,7 @@ void initSaRkHt(int r[], int len, int mx, int sa[], int rk[], int ht[]) {
 }
 
 int main() {
-    int i, mx;  // mx是r[]中的最大值
+    int i, n, mx = 0;  // n是s的长度；mx是r[]中的最大值
     cin >> s + 1;
     n = strlen(s + 1);
 
@@ -944,4 +946,100 @@ int solve(int n, int len) {
     return ans;
 }
 // main函数基本与上一个一模一样
+\end{lstlisting}
+    \subsection{出现或反转后出现在每个字符串中的最长子串}
+        给定 n 个字符串,求出现或反转后出现在每个字符串中的最长子串。\\
+        这题不同的地方在于要判断是否在反转后的字符串中出现。其实这并没有加
+        大题目的难度。只需要先将每个字符串都反过来写一遍,中间用一个互不相同的
+        且没有出现在字符串中的字符隔开,再将 n 个字符串全部连起来,中间也是用一
+        个互不相同的且没有出现在字符串中的字符隔开,求后缀数组。然后二分答案,
+        再将后缀分组。判断的时候,要看是否有一组后缀在每个原来的字符串或反转后
+        的字符串中出现。这个做法的时间复杂度为 O(nlogn)。
+    \subsection{后缀数组结合并查集}
+        例题：NOI2015 品酒大会\\
+        给定一个长度为n的字符串s。定义两个子串s[p..p0]和s[q..q0]"r相似"为
+        $p\neq q, p-p0+1=q-q0+1=r, s[p..p0]=s[q..q0]$；显然，若两个子串r相似，那么它们也是"r-1,r-2..相似"，
+        特别的对于任意的p,q它们都是"0相似"的。要求分别对于$r=0..n-1$，统计有多少种方法选出两个"r相似"的子串。\\
+        字符串每个位置还有一个权值a[i]。当我们选出两个"r相似"的子串，就会得到一个美味度$v=a[p]*a[q]$。
+        要求分别对于$r=0..n-1$，所有能选出两个"r相似"的子串的方法中，得到的最大的美味度。\\\\
+        要求长度大于等于r的重复子串，可以考虑对height[]分组，但是如果对每个r都完整跑一遍就$O(n^2)$超时了。\\
+        这里可以用并查集，按r递减的顺序处理。一开始每个后缀都是独立的，对每个r我们只要关注height值为r的后缀
+        （准确的说是该后缀与比他排名小1的后缀的lcp等于r），将它们向排名更小的后缀的并查集合并，每次在合并的时候算出
+        新的并查集与原来两个旧的并查集的差值，以及新的并查集中产生的新的最大乘积（美味度）。
+\begin{lstlisting}
+char s[N];          // 输入字串
+ll a[N];            // 每杯酒的价值
+vector<ll> lsa[N];  // lsa[i]表示ht值为i的后缀
+ll ans[N][2];       // ans[i][0]是r=i时的可取方法数；ans[i][1]是最大美味度
+
+struct UF {
+    ll pa, c, f[4];  // 父节点；并查集内的节点个数；最小的两个数和最大的两个数
+} uf[N];
+
+// 找x的根节点
+ll find(ll x) {
+    if (uf[x].pa == x)
+        return x;
+    return uf[x].pa = find(uf[x].pa);
+}
+
+// 合并x并查集和y并查集。返回该组的新和与旧和的差值；相乘的最大值
+inline pair<ll, ll> Union(ll x, ll y) {
+    static ll tmp[10];  // 用于排序
+    x = find(x), y = find(y);
+    if (x > y)
+        swap(x, y);
+    ll det = 0, i, p = 0;
+    // 注意tmp[]和*.f[]里都不能有重复。所以要分元素个数<4和>=4两种情况讨论
+    for (auto z : {x, y}) {
+        ll lim = min(uf[z].c, 4ll);
+        for (i = 0; i < lim; ++i)
+            tmp[p++] = uf[z].f[i];
+    }
+    sort(tmp, tmp + p);  // 对x和y的f[]进行统一排序
+    if (p < 4)
+        for (i = 0; i < p; ++i)
+            uf[x].f[i] = tmp[i];
+    else
+        uf[x].f[0] = tmp[0], uf[x].f[1] = tmp[1],
+        uf[x].f[3] = tmp[p - 1], uf[x].f[2] = tmp[p - 2];
+
+    uf[y].pa = x;
+    det -= uf[x].c * (uf[x].c - 1) / 2 + uf[y].c * (uf[y].c - 1) / 2;
+    uf[x].c += uf[y].c;
+    det += uf[x].c * (uf[x].c - 1) / 2;
+
+    p = min(uf[x].c, 4ll);  // 分情况算乘积的最大值
+    return {det, max(uf[x].f[0] * uf[x].f[1], uf[x].f[p - 1] * uf[x].f[p - 2])};
+}
+
+// n个字符串
+inline void solve(ll n) {
+    ll i, j, k;
+    // 初始化uf[]
+    for (i = 1; i <= n; ++i)
+        uf[i].c = 1, uf[i].pa = i, uf[i].f[0] = a[i];
+    // 统计lsa
+    for (i = 1; i <= n; ++i)
+        lsa[ht[rk[i]]].push_back(i);
+    // 计算答案
+    bool flag = 0;  // 初始得到的第一个值可能小于0，所以应直接赋给第一个ans；后面的ans会与前面的比较，所以不会直接赋值了
+    for (i = n - 1; i >= 0; --i) {
+        ans[i][0] = ans[i + 1][0];
+        ans[i][1] = ans[i + 1][1];
+        for (auto x : lsa[i]) {
+            if (rk[x] == 1)  // x和sa[rk[x]-1]的并查集会拼接起来。所以要注意rk[x]若为1，则应跳过
+                continue;
+            pair<ll, ll> p1 = Union(x, sa[rk[x] - 1]);
+            ans[i][0] += p1.first;
+            if (flag)
+                ans[i][1] = max(ans[i][1], p1.second);
+            else
+                ans[i][1] = p1.second, flag = 1;
+        }
+    }
+
+    for (i = 0; i < n; ++i)
+        printf("%lld %lld\n", ans[i][0], ans[i][1]);
+}
 \end{lstlisting}
